@@ -53,6 +53,11 @@ const Student = sequelize.define('Student', {
     type: DataTypes.INTEGER,
     validate: { min: 0, max: 100 }
   },
+  skills: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: []
+  },
   projects_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0

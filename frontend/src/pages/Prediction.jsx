@@ -47,7 +47,8 @@ const Prediction = () => {
 
   // ===== TAB 1: PLACEMENT PREDICTOR =====
   const PlacementPredictor = () => {
-    const liveStudent = students[0] || null;
+    const [selectedStudentId, setSelectedStudentId] = useState('');
+    const liveStudent = students.find(student => student.id === selectedStudentId) || students[0] || null;
     const [formData, setFormData] = useState({
       cgpa: '',
       branch: '',
@@ -64,6 +65,7 @@ const Prediction = () => {
 
     useEffect(function() {
       if (!liveStudent) return;
+      setSelectedStudentId(previousId => previousId || liveStudent.id);
       setFormData({
         cgpa: liveStudent.cgpa || '',
         branch: String(liveStudent.branch || '').toLowerCase(),
@@ -107,7 +109,23 @@ const Prediction = () => {
       <div className="charts-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div className="prediction-form">
           <h3 style={{ marginBottom: '16px' }}><FaBrain style={{ color: 'var(--accent)' }} /> Placement Predictor</h3>
-          <p style={{ color: '#6c757d', marginBottom: '16px' }}>Enter student details to get placement probability</p>
+          <p style={{ color: '#6c757d', marginBottom: '16px' }}>Select a student from the database or adjust the profile details.</p>
+
+          <div className="form-group">
+            <label>Database Student</label>
+            <select
+              value={liveStudent?.id || ''}
+              onChange={(e) => setSelectedStudentId(e.target.value)}
+              disabled={students.length === 0}
+            >
+              {students.length === 0 && <option value="">No students available</option>}
+              {students.map(student => (
+                <option key={student.id} value={student.id}>
+                  {student.name} ({student.roll_number})
+                </option>
+              ))}
+            </select>
+          </div>
           
           <div className="form-row">
             <div className="form-group">
@@ -232,34 +250,77 @@ const Prediction = () => {
 
   // ===== TAB 2: WHAT-IF SIMULATOR =====
   const WhatIfSimulator = () => {
-    const liveStudent = students[0] || null;
+    const [selectedStudentId, setSelectedStudentId] = useState('');
+    const liveStudent = students.find(student => student.id === selectedStudentId) || students[0] || null;
     const [baseCGPA, setBaseCGPA] = useState(7.2);
     const [baseCoding, setBaseCoding] = useState(400);
     const [baseInternships, setBaseInternships] = useState(0);
+    const [currentProb, setCurrentProb] = useState(0);
+    const [improvedProb, setImprovedProb] = useState(0);
 
     useEffect(function() {
       if (!liveStudent) return;
+      setSelectedStudentId(previousId => previousId || liveStudent.id);
       setBaseCGPA(parseFloat(liveStudent.cgpa || 7.2));
       setBaseCoding(parseInt(liveStudent.coding_score || 400, 10));
       setBaseInternships(parseInt(liveStudent.internships_count || 0, 10));
     }, [liveStudent]);
-    
-    const calculateProb = function(cgpa, coding, internships) {
-      var p = 0;
-      p += (cgpa / 10) * 32;
-      p += (coding / 1000) * 25;
-      p += (internships / 3) * 18;
-      p += 15;
-      return Math.min(Math.round(p), 98);
-    };
 
-    var currentProb = calculateProb(baseCGPA, baseCoding, baseInternships);
-    var improvedProb = calculateProb(Math.max(baseCGPA, 8.0), Math.max(baseCoding, 700), Math.max(baseInternships, 1));
+    useEffect(function() {
+      if (!liveStudent) return;
+      let cancelled = false;
+      const profile = {
+        cgpa: baseCGPA,
+        branch: String(liveStudent.branch || '').toLowerCase(),
+        internships: baseInternships,
+        coding: baseCoding,
+        attendance: liveStudent.attendance_percentage || 0,
+        projects: liveStudent.projects_count || 0,
+        communication: liveStudent.communication_score || 0,
+        selectedSkills: []
+      };
+      const improvedProfile = {
+        ...profile,
+        cgpa: Math.max(baseCGPA, 8.0),
+        coding: Math.max(baseCoding, 700),
+        internships: Math.max(baseInternships, 1)
+      };
+
+      Promise.all([predictPlacement(profile), predictPlacement(improvedProfile)])
+        .then(([current, improved]) => {
+          if (!cancelled) {
+            setCurrentProb(current.probability || 0);
+            setImprovedProb(improved.probability || 0);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCurrentProb(0);
+            setImprovedProb(0);
+          }
+        });
+
+      return function() { cancelled = true; };
+    }, [liveStudent, baseCGPA, baseCoding, baseInternships]);
 
     return (
       <div className="chart-card">
         <h3><FaCalculator style={{ color: 'var(--purple)' }} /> What-If Simulator</h3>
-        <p style={{ color: '#6c757d', marginBottom: '16px' }}>See how changing your profile affects placement probability</p>
+        <p style={{ color: '#6c757d', marginBottom: '16px' }}>See how changing the selected student profile affects placement probability</p>
+
+        <div className="form-group" style={{ marginBottom: '20px' }}>
+          <label>Database Student</label>
+          <select
+            value={liveStudent?.id || ''}
+            onChange={function(e) { setSelectedStudentId(e.target.value); }}
+            disabled={students.length === 0}
+          >
+            {students.length === 0 && <option value="">No students available</option>}
+            {students.map(student => (
+              <option key={student.id} value={student.id}>{student.name} ({student.roll_number})</option>
+            ))}
+          </select>
+        </div>
         
         <div className="stats-grid" style={{ marginBottom: '20px' }}>
           <div className="stat-card blue">
@@ -328,7 +389,16 @@ const Prediction = () => {
 
       if (students.length > 0) {
         const mappedStudents = students.map(function(student) {
-          const probability = Math.max(0, Math.min(100, Number(student.predicted_probability || Math.min(98, Math.round(((Number(student.cgpa || 0) / 10) * 32) + ((Number(student.coding_score || 0) / 1000) * 25) + ((Number(student.internships_count || 0) / 3) * 18) + ((Number(student.attendance_percentage || 0) / 100) * 12) + ((Number(student.projects_count || 0) / 5) * 8) + ((Number(student.communication_score || 0) / 100) * 3))))));
+          const probability = student.placement_status === 'placed'
+            ? 90
+            : Math.max(0, Math.min(100, Number(student.predicted_probability ?? Math.min(98, Math.round(
+              ((Number(student.cgpa || 0) / 10) * 32) +
+              ((Number(student.coding_score || 0) / 1000) * 25) +
+              ((Number(student.internships_count || 0) / 3) * 18) +
+              ((Number(student.attendance_percentage || 0) / 100) * 12) +
+              ((Number(student.projects_count || 0) / 5) * 8) +
+              ((Number(student.communication_score || 0) / 100) * 3)
+            )))));
           let risk = 'Low';
           if (probability < 40) risk = 'High';
           else if (probability < 70) risk = 'Medium';
@@ -414,27 +484,34 @@ const Prediction = () => {
     useEffect(function() {
       async function loadForecastData() {
         try {
-          const response = await getTrendForecast();
+          const collegeId = localStorage.getItem('collegeId');
+          const response = await getTrendForecast(collegeId);
           setForecastData(response);
         } catch (error) {
-          toast.error('Unable to load forecast data');
+          const placedStudents = students.filter((student) => String(student.placement_status || '').toLowerCase() === 'placed').length;
+          const placementRate = students.length > 0 ? Math.round((placedStudents / students.length) * 100) : 0;
+          const packages = students
+            .filter(student => String(student.placement_status || '').toLowerCase() === 'placed')
+            .map(student => parseFloat(String(student.package || '').replace(/[^0-9.]/g, '')))
+            .filter(value => !Number.isNaN(value));
+          const averagePackage = packages.length > 0
+            ? Number((packages.reduce((sum, value) => sum + value, 0) / packages.length).toFixed(1))
+            : 0;
+          setForecastData({
+            years: ['Current', 'Next Period'],
+            placementRates: [placementRate, Math.min(98, placementRate + 4)],
+            avgPackages: [averagePackage, averagePackage],
+            summary: {
+              predictedPlacement: Math.min(98, placementRate + 4),
+              expectedRecruiters: Math.max(1, Math.round(placedStudents / 2)),
+              expectedAvgPackage: averagePackage
+            }
+          });
         }
       }
 
       if (students.length > 0) {
-        const placedStudents = students.filter((student) => String(student.placement_status || '').toLowerCase() === 'placed').length;
-        const placementRate = students.length > 0 ? Math.round((placedStudents / students.length) * 100) : 0;
-        const predictedPlacement = Math.min(98, placementRate + 4);
-        setForecastData({
-          years: ['Current', '2026 (Pred)'],
-          placementRates: [placementRate, predictedPlacement],
-          avgPackages: [8.4, 9.8],
-          summary: {
-            predictedPlacement,
-            expectedRecruiters: Math.max(1, Math.round(predictedPlacement / 2)),
-            expectedAvgPackage: 9.8
-          }
-        });
+        loadForecastData();
       } else {
         setForecastData({
           years: [],
@@ -515,11 +592,20 @@ const Prediction = () => {
 
   // ===== TAB 5: SKILL GAP ANALYZER =====
   const SkillGapAnalyzer = function() {
+    var [selectedStudentId, setSelectedStudentId] = useState('');
     var [company, setCompany] = useState('');
     var [selectedSkills, setSelectedSkills] = useState([]);
+    var [manualSkill, setManualSkill] = useState('');
     var [result, setResult] = useState(null);
+    var liveStudent = students.find(student => student.id === selectedStudentId) || students[0] || null;
 
-    var allSkills = ['Data Structures', 'Web Development', 'DBMS', 'Operating Systems', 'Computer Networks'];
+    useEffect(function() {
+      if (!liveStudent) return;
+      setSelectedStudentId(function(previousId) { return previousId || liveStudent.id; });
+      setSelectedSkills(Array.isArray(liveStudent.skills) ? liveStudent.skills : []);
+    }, [liveStudent]);
+
+    var allSkills = ['Data Structures', 'Web Development', 'DBMS', 'Operating Systems', 'Computer Networks', 'Communication', 'System Design', 'Leadership'];
     var companyRequirements = {
       google: ['Data Structures', 'Operating Systems', 'Computer Networks', 'System Design'],
       amazon: ['Data Structures', 'Operating Systems', 'DBMS', 'Leadership'],
@@ -536,14 +622,41 @@ const Prediction = () => {
       }
     };
 
+    var addManualSkill = function() {
+      var skillsToAdd = manualSkill
+        .split(',')
+        .map(function(skill) { return skill.trim(); })
+        .filter(Boolean);
+      if (skillsToAdd.length === 0) return;
+      setSelectedSkills(function(current) {
+        return Array.from(new Set(current.concat(skillsToAdd)));
+      });
+      setManualSkill('');
+    };
+
     var analyzeGap = async function() {
       if (!company) {
         toast.error('Please select a target company!');
         return;
       }
 
+      var pendingSkills = manualSkill
+        .split(',')
+        .map(function(skill) { return skill.trim(); })
+        .filter(Boolean);
+      var skillsForAnalysis = Array.from(new Set(selectedSkills.concat(pendingSkills).map(function(skill) {
+        var canonicalSkill = allSkills.find(function(knownSkill) {
+          return knownSkill.toLowerCase() === skill.toLowerCase();
+        });
+        return canonicalSkill || skill;
+      })));
+      if (pendingSkills.length > 0) {
+        setSelectedSkills(skillsForAnalysis);
+        setManualSkill('');
+      }
+
       try {
-        const response = await analyzeSkillGap({ company, selectedSkills });
+        const response = await analyzeSkillGap({ company, selectedSkills: skillsForAnalysis });
         setResult({ company: response.company, missing: response.missing, required: response.required, learningPlan: response.learningPlan });
         toast.success('Skill gap analysis completed');
       } catch (error) {
@@ -555,6 +668,15 @@ const Prediction = () => {
       <div className="charts-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div className="prediction-form">
           <h3><FaPuzzlePiece style={{ color: 'var(--accent)' }} /> Skill Gap Analyzer</h3>
+          <div className="form-group">
+            <label>Database Student</label>
+            <select value={liveStudent?.id || ''} onChange={function(e) { setSelectedStudentId(e.target.value); }} disabled={students.length === 0}>
+              {students.length === 0 && <option value="">No students available</option>}
+              {students.map(function(student) {
+                return <option key={student.id} value={student.id}>{student.name} ({student.roll_number})</option>;
+              })}
+            </select>
+          </div>
           <div className="form-group">
             <label>Target Company</label>
             <select value={company} onChange={function(e) { setCompany(e.target.value); }}>
@@ -577,6 +699,21 @@ const Prediction = () => {
                 );
               })}
             </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <input
+                type="text"
+                value={manualSkill}
+                onChange={function(e) { setManualSkill(e.target.value); }}
+                onKeyDown={function(e) { if (e.key === 'Enter') { e.preventDefault(); addManualSkill(); } }}
+                placeholder="Add skill manually, e.g. System Design"
+              />
+              <button type="button" className="btn btn-outline" onClick={addManualSkill}>Add</button>
+            </div>
+            {selectedSkills.length > 0 && (
+              <p style={{ fontSize: '12px', color: '#6c757d', marginTop: '8px' }}>
+                Selected: {selectedSkills.join(', ')}
+              </p>
+            )}
           </div>
           <button className="btn btn-primary" style={{ width: '100%', padding: '14px' }} onClick={analyzeGap}>
             <FaMagic /> Analyze Skill Gap
@@ -615,13 +752,21 @@ const Prediction = () => {
 
   // ===== TAB 6: COMPANY RECOMMENDATION =====
   const CompanyRecommendation = function() {
+    const [selectedStudentId, setSelectedStudentId] = useState('');
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
+    const selectedStudent = students.find(student => student.id === selectedStudentId) || students[0] || null;
+
+    useEffect(function() {
+      if (students.length > 0 && !selectedStudentId) {
+        setSelectedStudentId(students[0].id);
+      }
+    }, [students, selectedStudentId]);
 
     useEffect(function() {
       async function loadRecommendations() {
         try {
-          const response = await getCompanyRecommendations(students[0]?.id || null);
+          const response = await getCompanyRecommendations(selectedStudent?.id || null);
           setCompanies(response.recommendations || []);
         } catch (error) {
           toast.error('Unable to load company recommendations');
@@ -637,7 +782,7 @@ const Prediction = () => {
         setCompanies([]);
         setLoading(false);
       }
-    }, [students]);
+    }, [students, selectedStudentId, selectedStudent]);
 
     const bestFit = companies.filter(function(c) { return c.match >= 70; });
     const stretch = companies.filter(function(c) { return c.match < 70; });
@@ -646,6 +791,15 @@ const Prediction = () => {
       <div className="chart-card">
         <h3><FaBullseye style={{ color: 'var(--purple)' }} /> Company Recommendation Engine</h3>
         <p style={{ color: '#6c757d', marginBottom: '16px' }}>Suggested companies based on CGPA, skills, coding score, and internship experience</p>
+        <div className="form-group">
+          <label>Database Student</label>
+          <select value={selectedStudent?.id || ''} onChange={function(e) { setSelectedStudentId(e.target.value); }} disabled={students.length === 0}>
+            {students.length === 0 && <option value="">No students available</option>}
+            {students.map(function(student) {
+              return <option key={student.id} value={student.id}>{student.name} ({student.roll_number})</option>;
+            })}
+          </select>
+        </div>
 
         {loading ? (
           <p style={{ color: '#6c757d' }}>Loading recommendations…</p>

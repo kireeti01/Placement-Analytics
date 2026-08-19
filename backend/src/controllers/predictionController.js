@@ -177,7 +177,8 @@ exports.analyzeSkillGap = async (req, res) => {
 
     const { company = '', selectedSkills = [] } = payload;
     const required = companyRequirements[company] || [];
-    const missing = required.filter((skill) => !selectedSkills.includes(skill));
+    const selectedNormalized = new Set(selectedSkills.map((skill) => String(skill).trim().toLowerCase()));
+    const missing = required.filter((skill) => !selectedNormalized.has(skill.toLowerCase()));
 
     return res.json({
       company,
@@ -196,8 +197,9 @@ exports.analyzeSkillGap = async (req, res) => {
 exports.analyzeResume = async (req, res) => {
   try {
     const filename = req.file?.originalname || 'resume.pdf';
+    const contentBase64 = req.file?.buffer?.toString('base64') || '';
     try {
-      const aiResponse = await callAiService('/resume', { filename });
+      const aiResponse = await callAiService('/resume', { filename, contentBase64 });
       if (typeof aiResponse.atsScore === 'number') {
         return res.json(aiResponse);
       }
@@ -243,7 +245,14 @@ exports.getCompanyRecommendations = async (req, res) => {
     const codingScore = parseInt(student.coding_score || 0, 10);
     const internships = parseInt(student.internships_count || 0, 10);
     const communication = parseInt(student.communication_score || 0, 10);
-    const baseScore = Math.min(95, Math.round((cgpa * 8) + (codingScore / 10) + (internships * 8) + (communication * 0.5)));
+    const skillCount = Array.isArray(student.skills) ? student.skills.length : 0;
+    const baseScore = Math.min(95, Math.round(
+      (cgpa * 8) +
+      (codingScore / 10) +
+      (internships * 8) +
+      (communication * 0.5) +
+      (skillCount * 2)
+    ));
 
     const recommendations = marketCompanies.map((company, index) => ({
       ...company,
@@ -267,7 +276,19 @@ exports.getAtRiskStudents = async (req, res) => {
     });
 
     const mappedStudents = students.map((student) => {
-      const probability = Math.max(0, Math.min(100, Number(student.predicted_probability || 0)));
+      const probability = student.placement_status === 'placed'
+        ? 90
+        : Math.max(0, Math.min(100, Number(
+          student.predicted_probability ?? calculateProbability({
+            cgpa: student.cgpa,
+            coding: student.coding_score,
+            internships: student.internships_count,
+            attendance: student.attendance_percentage,
+            projects: student.projects_count,
+            communication: student.communication_score,
+            branch: student.branch
+          })
+        )));
       let risk = 'Low';
       if (probability < 40) risk = 'High';
       else if (probability < 70) risk = 'Medium';
@@ -328,7 +349,14 @@ exports.getTrendForecast = async (req, res) => {
 
     const years = ['2021', '2022', '2023', '2024', '2025', '2026 (Pred)'];
     const placementRates = [68, 72, 75, 78, placementRate || 82, Math.min(98, placementRate + 4 || 86)];
-    const avgPackages = [5.2, 5.8, 6.5, 7.2, 8.4, 9.8];
+    const packages = students
+      .filter((student) => student.placement_status === 'placed')
+      .map((student) => parseFloat(String(student.package || '').replace(/[^0-9.]/g, '')))
+      .filter((value) => !Number.isNaN(value));
+    const averagePackage = packages.length > 0
+      ? Number((packages.reduce((sum, value) => sum + value, 0) / packages.length).toFixed(1))
+      : 0;
+    const avgPackages = [5.2, 5.8, 6.5, 7.2, averagePackage, averagePackage];
 
     return res.json({
       years,
@@ -337,7 +365,7 @@ exports.getTrendForecast = async (req, res) => {
       summary: {
         predictedPlacement: placementRates[placementRates.length - 1],
         expectedRecruiters: Math.max(1, Math.round(placementRate / 2)),
-        expectedAvgPackage: 9.8
+        expectedAvgPackage: averagePackage
       }
     });
   } catch (error) {

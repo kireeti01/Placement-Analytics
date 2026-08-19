@@ -26,6 +26,7 @@ export const AppProvider = ({ children }) => {
     placementRate: 0,
     avgPackage: '0 LPA',
     highestPackage: '0 LPA'
+    ,monthlyPlacement: { labels: [], values: [] }
   };
   const [stats, setStats] = useState(emptyStats);
 
@@ -89,6 +90,7 @@ export const AppProvider = ({ children }) => {
           placementRate: apiStats.placementRate ?? 0,
           avgPackage: apiStats.avgPackage ?? '0 LPA',
           highestPackage: apiStats.highestPackage ?? '0 LPA'
+          ,monthlyPlacement: apiStats.monthlyPlacement ?? { labels: [], values: [] }
         });
       }
       return response.data;

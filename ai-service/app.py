@@ -1,7 +1,10 @@
 import json
 import os
+import base64
+import io
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
+from pypdf import PdfReader
 from models.placement_model import PlacementModel
 
 HOST = os.getenv('AI_SERVICE_HOST', '0.0.0.0')
@@ -156,7 +159,8 @@ class AIServiceHandler(BaseHTTPRequestHandler):
                 'infosys': ['Data Structures', 'Web Development', 'DBMS']
             }
             required = company_requirements.get(company, [])
-            missing = [skill for skill in required if skill not in selected_skills]
+            selected_normalized = {str(skill).strip().lower() for skill in selected_skills}
+            missing = [skill for skill in required if skill.lower() not in selected_normalized]
             self._send_json({
                 'company': company,
                 'required': required,
@@ -167,12 +171,26 @@ class AIServiceHandler(BaseHTTPRequestHandler):
 
         if parsed.path == '/resume':
             filename = payload.get('filename', 'resume.pdf')
-            ats_score = 78 if 'resume' in filename.lower() else 64
+            resume_text = ''
+            content_base64 = payload.get('contentBase64', '')
+            if content_base64:
+                try:
+                    pdf_bytes = base64.b64decode(content_base64)
+                    reader = PdfReader(io.BytesIO(pdf_bytes))
+                    resume_text = '\n'.join(page.extract_text() or '' for page in reader.pages)
+                except Exception as error:
+                    print(f'Resume text extraction failed: {error}')
+
+            normalized_text = resume_text.lower()
+            keywords = ['python', 'javascript', 'react', 'sql', 'machine learning', 'rest api', 'cloud', 'system design']
+            matched_keywords = [keyword for keyword in keywords if keyword in normalized_text]
+            missing_keywords = [keyword.title() for keyword in keywords if keyword not in normalized_text]
+            ats_score = min(95, 45 + len(matched_keywords) * 6) if resume_text else (78 if 'resume' in filename.lower() else 64)
             self._send_json({
                 'atsScore': ats_score,
-                'missingKeywords': ['REST APIs', 'Cloud Deployment', 'System Design'] if ats_score >= 70 else ['Resume file is missing or unreadable'],
+                'missingKeywords': missing_keywords[:5] if resume_text else ['Resume file is missing or unreadable'],
                 'suggestions': [
-                    'Add measurable impact/metrics to project bullet points',
+                    'Add measurable impact and metrics to project bullet points',
                     'Include a dedicated Skills section with proficiency levels',
                     'Use stronger action verbs at the start of each bullet'
                 ]

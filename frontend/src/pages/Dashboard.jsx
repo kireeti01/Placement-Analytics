@@ -89,13 +89,15 @@ const Dashboard = () => {
     // Monthly Chart
     if (monthlyChartRef.current) {
       if (monthlyChartInstance.current) monthlyChartInstance.current.destroy();
+      const monthlyLabels = stats.monthlyPlacement?.labels || [];
+      const monthlyValues = stats.monthlyPlacement?.values || [];
       monthlyChartInstance.current = new Chart(monthlyChartRef.current, {
         type: 'bar',
         data: {
-          labels: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          labels: monthlyLabels,
           datasets: [{ 
             label: 'Students Placed', 
-            data: [45, 120, 180, 220, 280, 320, 380, 450, 520, 680, 850, placedCount], 
+            data: monthlyValues,
             backgroundColor: '#1e3a5f', 
             borderRadius: 6 
           }]

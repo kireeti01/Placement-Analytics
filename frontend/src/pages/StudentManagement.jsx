@@ -16,6 +16,7 @@ const StudentManagement = () => {
     cgpa: '',
     placement_status: 'in_process',
     career_path: 'placed',
+    skills: '',
     company: '',
     package: ''
   });
@@ -75,6 +76,9 @@ const StudentManagement = () => {
           'career path': 'career_path',
           'career_path': 'career_path',
           'Career Path': 'career_path',
+          'skills': 'skills',
+          'Skills': 'skills',
+          'student skills': 'skills',
           'company': 'company',
           'Company': 'company',
           'COMPANY': 'company',
@@ -112,6 +116,7 @@ const StudentManagement = () => {
             cgpa: parseFloat(row.cgpa) || '',
             placement_status: row.placement_status?.toString().trim() || 'in_process',
             career_path: row.career_path?.toString().trim() || 'placed',
+            skills: (row.skills || '').toString().split(',').map(skill => skill.trim()).filter(Boolean),
             company: row.company?.toString().trim() || '',
             package: row.package?.toString().trim() || '',
             email: row.email?.toString().trim() || '',
@@ -172,7 +177,8 @@ const StudentManagement = () => {
 
     const studentData = {
       ...formData,
-      cgpa: parseFloat(formData.cgpa) || 0
+      cgpa: parseFloat(formData.cgpa) || 0,
+      skills: formData.skills.split(',').map(skill => skill.trim()).filter(Boolean)
     };
 
     if (editingStudent) {
@@ -192,6 +198,7 @@ const StudentManagement = () => {
       cgpa: '', 
       placement_status: 'in_process', 
       career_path: 'placed',
+      skills: '',
       company: '', 
       package: '' 
     });
@@ -208,6 +215,7 @@ const StudentManagement = () => {
       cgpa: student.cgpa || '',
       placement_status: student.placement_status || 'in_process',
       career_path: student.career_path || (student.placement_status === 'placed' ? 'placed' : 'other'),
+      skills: Array.isArray(student.skills) ? student.skills.join(', ') : '',
       company: student.company || '',
       package: student.package || ''
     });
@@ -358,6 +366,10 @@ const StudentManagement = () => {
                 <label>Package (LPA)</label>
                 <input type="text" name="package" value={formData.package} onChange={handleInputChange} placeholder="e.g., 8.5" disabled={loading} />
               </div>
+            </div>
+            <div className="form-group">
+              <label>Skills (comma separated)</label>
+              <input type="text" name="skills" value={formData.skills} onChange={handleInputChange} placeholder="e.g., Data Structures, DBMS, Web Development" disabled={loading} />
             </div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px' }} disabled={loading}>
               <FaSave /> {editingStudent ? 'Update Student' : 'Add Student'}
