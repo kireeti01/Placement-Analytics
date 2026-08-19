@@ -1,6 +1,6 @@
-# CampusPlacement AI
+# The Placement Analytics and Career Outcome Intelligence Platform
 
-CampusPlacement AI is a college placement-management, analytics, reporting, and AI-assistance platform. It allows a super administrator to manage colleges and college administrators, allows a college administrator/TPO to manage student and placement data, and provides a read-only parent/student view for a selected college.
+The Placement Analytics and Career Outcome Intelligence Platform is a college placement-management, analytics, reporting, and AI-assistance platform. It allows a super administrator to manage colleges and college administrators, allows a college administrator/TPO to manage student and placement data, and provides a read-only parent/student view for a selected college.
 
 ## Contents
 
