@@ -1,16 +1,38 @@
-const { Student, College } = require('../models');
+﻿const { Student, College } = require('../models');
 const { Op } = require('sequelize');
 
-// Get all students (with college filter)
+// Get all students (with college filter) - MODIFIED FOR PARENT/GUEST ACCESS
 exports.getAllStudents = async (req, res) => {
   try {
     const { college_id, branch, status, search } = req.query;
     const where = {};
 
-    if (req.user.role !== 'super_admin' && req.user.college_id) {
-      where.college_id = req.user.college_id;
-    } else if (college_id) {
+    console.log('📊 Get students request:', { 
+      userRole: req.user?.role, 
+      college_id, 
+      branch, 
+      status, 
+      search 
+    });
+
+    // PARENT/GUEST ACCESS: If college_id is provided in query, use it
+    if (college_id) {
       where.college_id = college_id;
+      console.log('📍 Filtering by college_id:', college_id);
+    } 
+    // ADMIN ACCESS: Use their college_id
+    else if (req.user && req.user.role !== 'super_admin' && req.user.college_id) {
+      where.college_id = req.user.college_id;
+      console.log('📍 Admin filtering by college_id:', req.user.college_id);
+    }
+    // SUPER ADMIN ACCESS: No college filter (see all)
+    else if (req.user && req.user.role === 'super_admin') {
+      console.log('📍 Super Admin - no college filter');
+    }
+    // NO college_id provided and not logged in
+    else {
+      console.log('⚠️ No college_id provided and not logged in');
+      return res.json([]);
     }
 
     if (branch) where.branch = branch;
@@ -28,6 +50,8 @@ exports.getAllStudents = async (req, res) => {
       where,
       order: [['name', 'ASC']]
     });
+
+    console.log(✅ Returning  students);
     res.json(students);
   } catch (error) {
     console.error('Get students error:', error);
@@ -59,7 +83,6 @@ exports.createStudent = async (req, res) => {
       data.college_id = req.user.college_id || null;
     }
 
-    // Normalize placement_status
     if (data.placement_status) {
       const statusMap = {
         'placed': 'placed',
@@ -94,9 +117,7 @@ exports.createStudent = async (req, res) => {
   }
 };
 
-// ============================================================
-// BULK CREATE STUDENTS (CSV UPLOAD) - CORRECT VERSION
-// ============================================================
+// Bulk create students (CSV upload) - SKIP DUPLICATES VERSION
 exports.bulkCreateStudents = async (req, res) => {
   try {
     const { students } = req.body;
@@ -109,9 +130,9 @@ exports.bulkCreateStudents = async (req, res) => {
 
     const results = [];
     const errors = [];
+    const skipped = [];
     const collegeId = req.user.college_id || null;
 
-    // Status mapping
     const statusMap = {
       'placed': 'placed',
       'pl': 'placed',
@@ -130,7 +151,6 @@ exports.bulkCreateStudents = async (req, res) => {
       const studentData = students[i];
       
       try {
-        // Check required fields
         if (!studentData.name || !studentData.roll_number || !studentData.branch) {
           errors.push({
             row: i + 1,
@@ -140,14 +160,36 @@ exports.bulkCreateStudents = async (req, res) => {
           continue;
         }
 
-        // Prepare data
+        const rollNumber = studentData.roll_number.toString().trim();
+
+        const existingStudent = await Student.findOne({
+          where: {
+            roll_number: rollNumber,
+            college_id: collegeId
+          }
+        });
+
+        if (existingStudent) {
+          console.log(⏭️ Skipping duplicate:  ());
+          skipped.push({
+            row: i + 1,
+            student: studentData,
+            reason: Roll number "" already exists in database
+          });
+          continue;
+        }
+
         const data = {
           name: studentData.name.toString().trim(),
-          roll_number: studentData.roll_number.toString().trim(),
+          roll_number: rollNumber,
           branch: studentData.branch.toString().trim(),
           college_id: studentData.college_id || collegeId,
-          email: studentData.email || '',
-          phone: studentData.phone || '',
+          email: studentData.email && studentData.email.toString().trim() !== '' 
+            ? studentData.email.toString().trim() 
+            : null,
+          phone: studentData.phone && studentData.phone.toString().trim() !== '' 
+            ? studentData.phone.toString().trim() 
+            : null,
           batch: studentData.batch || '2025',
           cgpa: parseFloat(studentData.cgpa) || 0,
           attendance_percentage: parseFloat(studentData.attendance_percentage) || 75,
@@ -155,45 +197,30 @@ exports.bulkCreateStudents = async (req, res) => {
           communication_score: parseInt(studentData.communication_score) || 0,
           projects_count: parseInt(studentData.projects_count) || 0,
           internships_count: parseInt(studentData.internships_count) || 0,
-          company: studentData.company || '',
-          package: studentData.package || '',
+          company: studentData.company && studentData.company.toString().trim() !== '' 
+            ? studentData.company.toString().trim() 
+            : null,
+          package: studentData.package && studentData.package.toString().trim() !== '' 
+            ? studentData.package.toString().trim() 
+            : null,
           placement_status: 'in_process'
         };
 
-        // Normalize placement status
         if (studentData.placement_status) {
           const statusKey = studentData.placement_status.toString().toLowerCase().trim();
           data.placement_status = statusMap[statusKey] || 'in_process';
         }
 
-        // Check for duplicate roll number
-        const existingStudent = await Student.findOne({
-          where: {
-            roll_number: data.roll_number,
-            college_id: data.college_id
-          }
-        });
-
-        if (existingStudent) {
-          errors.push({
-            row: i + 1,
-            student: studentData,
-            error: `Duplicate roll number: ${data.roll_number} already exists`
-          });
-          continue;
-        }
-
-        // Create student
         const student = await Student.create({
           ...data,
           created_by: req.user.role === 'admin' ? null : req.user.id
         });
 
         results.push(student);
-        console.log(`✅ Created: ${student.name} (${student.roll_number})`);
+        console.log(✅ Created:  ());
 
       } catch (error) {
-        console.error(`❌ Error at row ${i + 1}:`, error.message);
+        console.error(❌ Error at row :, error.message);
         errors.push({
           row: i + 1,
           student: studentData,
@@ -202,15 +229,24 @@ exports.bulkCreateStudents = async (req, res) => {
       }
     }
 
-    console.log(`✅ Success: ${results.length}, Failed: ${errors.length}`);
+    console.log(✅ Success: , Skipped: , Failed: );
 
-    res.json({
+    const response = {
       success: results.length,
+      skipped: skipped.length,
       failed: errors.length,
       students: results,
-      errors: errors,
       total: students.length
-    });
+    };
+
+    if (skipped.length > 0) {
+      response.skipped_details = skipped;
+    }
+    if (errors.length > 0) {
+      response.errors = errors;
+    }
+
+    res.json(response);
 
   } catch (error) {
     console.error('❌ Bulk create error:', error);

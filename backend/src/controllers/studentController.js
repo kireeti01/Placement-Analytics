@@ -1,21 +1,40 @@
 ﻿const { Student, College } = require('../models');
 const { Op } = require('sequelize');
 
-// Get all students (with college filter)
+// Get all students (with college filter) - FIXED FOR PARENT/GUEST ACCESS
 exports.getAllStudents = async (req, res) => {
   try {
     const { college_id, branch, status, search } = req.query;
     const where = {};
 
-    if (req.user.role !== 'super_admin' && req.user.college_id) {
+    console.log('📊 Get students request:', {
+      userRole: req.user?.role || 'guest',
+      college_id,
+      branch,
+      status,
+      search
+    });
+
+    // Authenticated users must remain scoped to their assigned college.
+    if (req.user && req.user.role !== 'super_admin' && req.user.college_id) {
       where.college_id = req.user.college_id;
-    } else if (college_id) {
+      console.log('📍 User filtering by college_id:', req.user.college_id);
+    }
+    else if (req.user && req.user.role === 'super_admin') {
+      console.log('📍 Super Admin - no college filter');
+    }
+    else if (college_id) {
       where.college_id = college_id;
+      console.log('📍 Guest filtering by college_id:', college_id);
+    }
+    else {
+      console.log('⚠️ No college_id provided - returning empty array');
+      return res.json([]);
     }
 
     if (branch) where.branch = branch;
     if (status) where.placement_status = status;
-    
+
     if (search) {
       where[Op.or] = [
         { name: { [Op.iLike]: '%' + search + '%' } },
@@ -28,6 +47,8 @@ exports.getAllStudents = async (req, res) => {
       where,
       order: [['name', 'ASC']]
     });
+
+    console.log(`✅ Returning ${students.length} students`);
     res.json(students);
   } catch (error) {
     console.error('Get students error:', error);
@@ -52,7 +73,7 @@ exports.getStudentById = async (req, res) => {
 exports.createStudent = async (req, res) => {
   try {
     const data = { ...req.body };
-    
+
     if (req.user.role === 'admin') {
       data.college_id = req.user.college_id;
     } else if (req.user.role === 'super_admin' && !data.college_id) {
@@ -97,9 +118,9 @@ exports.createStudent = async (req, res) => {
 exports.bulkCreateStudents = async (req, res) => {
   try {
     const { students } = req.body;
-    
+
     console.log('📝 Bulk upload received:', students?.length || 0, 'students');
-    
+
     if (!Array.isArray(students) || students.length === 0) {
       return res.status(400).json({ error: 'No students provided' });
     }
@@ -125,7 +146,7 @@ exports.bulkCreateStudents = async (req, res) => {
 
     for (let i = 0; i < students.length; i++) {
       const studentData = students[i];
-      
+
       try {
         if (!studentData.name || !studentData.roll_number || !studentData.branch) {
           errors.push({
@@ -138,7 +159,6 @@ exports.bulkCreateStudents = async (req, res) => {
 
         const rollNumber = studentData.roll_number.toString().trim();
 
-        // CHECK FOR DUPLICATE - SKIP IF EXISTS
         const existingStudent = await Student.findOne({
           where: {
             roll_number: rollNumber,
@@ -161,11 +181,11 @@ exports.bulkCreateStudents = async (req, res) => {
           roll_number: rollNumber,
           branch: studentData.branch.toString().trim(),
           college_id: studentData.college_id || collegeId,
-          email: studentData.email && studentData.email.toString().trim() !== '' 
-            ? studentData.email.toString().trim() 
+          email: studentData.email && studentData.email.toString().trim() !== ''
+            ? studentData.email.toString().trim()
             : null,
-          phone: studentData.phone && studentData.phone.toString().trim() !== '' 
-            ? studentData.phone.toString().trim() 
+          phone: studentData.phone && studentData.phone.toString().trim() !== ''
+            ? studentData.phone.toString().trim()
             : null,
           batch: studentData.batch || '2025',
           cgpa: parseFloat(studentData.cgpa) || 0,
@@ -174,11 +194,11 @@ exports.bulkCreateStudents = async (req, res) => {
           communication_score: parseInt(studentData.communication_score) || 0,
           projects_count: parseInt(studentData.projects_count) || 0,
           internships_count: parseInt(studentData.internships_count) || 0,
-          company: studentData.company && studentData.company.toString().trim() !== '' 
-            ? studentData.company.toString().trim() 
+          company: studentData.company && studentData.company.toString().trim() !== ''
+            ? studentData.company.toString().trim()
             : null,
-          package: studentData.package && studentData.package.toString().trim() !== '' 
-            ? studentData.package.toString().trim() 
+          package: studentData.package && studentData.package.toString().trim() !== ''
+            ? studentData.package.toString().trim()
             : null,
           placement_status: 'in_process'
         };
@@ -227,8 +247,8 @@ exports.bulkCreateStudents = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Bulk create error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create students: ' + error.message 
+    res.status(500).json({
+      error: 'Failed to create students: ' + error.message
     });
   }
 };

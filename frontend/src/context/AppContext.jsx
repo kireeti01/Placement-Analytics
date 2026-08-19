@@ -17,7 +17,7 @@ export const AppProvider = ({ children }) => {
   const [placements, setPlacements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const emptyStats = {
     total: 0,
     placed: 0,
@@ -35,16 +35,26 @@ export const AppProvider = ({ children }) => {
     setStats(emptyStats);
   };
 
-  const loadStudents = async () => {
+  const loadStudents = async (params = {}) => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      clearContextData();
+    const role = localStorage.getItem('role');
+    const collegeId = localStorage.getItem('collegeId');
+    const requestParams = {
+      ...params,
+      ...(collegeId && role !== 'super_admin' && !params.college_id
+        ? { college_id: collegeId }
+        : {})
+    };
+
+    if (!token && Object.keys(requestParams).length === 0) {
+      setStudents([]);
+      setLoading(false);
       return [];
     }
-    
+
     setLoading(true);
     try {
-      const response = await studentAPI.getAll();
+      const response = await studentAPI.getAll(requestParams);
       const data = response.data || [];
       setStudents(data);
       return data;
@@ -59,13 +69,16 @@ export const AppProvider = ({ children }) => {
 
   const loadStats = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
+    const role = localStorage.getItem('role');
+    const collegeId = localStorage.getItem('collegeId');
+    if (!token && !collegeId) {
       clearContextData();
       return null;
     }
-    
+
     try {
-      const response = await dashboardAPI.getStats();
+      const params = role === 'guest' && collegeId ? { college_id: collegeId } : undefined;
+      const response = await dashboardAPI.getStats(params);
       if (response.data && response.data.stats) {
         const apiStats = response.data.stats;
         setStats({
@@ -87,13 +100,15 @@ export const AppProvider = ({ children }) => {
 
   const loadPlacements = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
+    const collegeId = localStorage.getItem('collegeId');
+    if (!token && !collegeId) {
       clearContextData();
       return [];
     }
 
     try {
-      const response = await placementAPI.getAll();
+      const params = collegeId ? { college_id: collegeId } : undefined;
+      const response = await placementAPI.getAll(params);
       const data = response.data || [];
       setPlacements(data);
       return data;
@@ -106,7 +121,8 @@ export const AppProvider = ({ children }) => {
 
   const refreshData = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
+    const collegeId = localStorage.getItem('collegeId');
+    if (!token && !collegeId) {
       clearContextData();
       return;
     }
@@ -118,7 +134,8 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const syncSession = () => {
       const token = localStorage.getItem('token');
-      if (!token) {
+      const collegeId = localStorage.getItem('collegeId');
+      if (!token && !collegeId) {
         clearContextData();
         return;
       }
@@ -149,7 +166,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Bulk add students (CSV upload) - CLEAN TOAST VERSION
   const addBulkStudents = async (newStudents) => {
     if (!newStudents || newStudents.length === 0) {
       toast.error('No students to upload');
@@ -162,49 +178,45 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await studentAPI.bulkCreate(newStudents);
       console.log('✅ Bulk upload response:', response.data);
-      
+
       await loadStudents();
       await loadStats();
-      
+
       if (response.data) {
         const { success, skipped, failed, skipped_details, errors } = response.data;
-        
-        // Build a single comprehensive message
+
         let message = '';
         let hasSuccess = false;
         let hasWarning = false;
         let hasError = false;
         let showSuccess = false;
-        
+
         if (success > 0) {
           message += `✅ ${success} students added successfully!`;
           hasSuccess = true;
           showSuccess = true;
         }
-        
+
         if (skipped > 0) {
           if (message) message += ' ';
           message += `⏭️ ${skipped} students skipped (duplicate roll numbers)`;
           hasWarning = true;
-          
-          // Log skipped details to console only
+
           if (skipped_details && skipped_details.length > 0) {
             console.log('⏭️ Skipped students:', skipped_details);
           }
         }
-        
+
         if (failed > 0) {
           if (message) message += ' ';
           message += `❌ ${failed} students failed to add`;
           hasError = true;
-          
-          // Log errors to console only
+
           if (errors && errors.length > 0) {
             console.error('❌ Errors during bulk upload:', errors);
           }
         }
-        
-        // Show SINGLE toast based on the result
+
         if (showSuccess && !hasError) {
           toast.success(message);
         } else if (showSuccess && hasError) {
@@ -216,13 +228,12 @@ export const AppProvider = ({ children }) => {
         } else if (message) {
           toast(message);
         }
-        
-        // If no students were processed at all
+
         if (success === 0 && skipped === 0 && failed === 0) {
           toast.error('No students were processed. Please check the CSV format.');
         }
       }
-      
+
       return response.data;
     } catch (error) {
       console.error('❌ Bulk add error:', error);

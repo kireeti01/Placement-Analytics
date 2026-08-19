@@ -4,7 +4,10 @@ const { Op } = require('sequelize');
 
 exports.getDashboardStats = async (req, res) => {
   try {
-    const collegeId = req.user.role === 'super_admin' ? null : req.user.college_id;
+    const requestedCollegeId = req.query.college_id;
+    const collegeId = req.user?.role === 'super_admin'
+      ? null
+      : req.user?.college_id || requestedCollegeId;
     const where = collegeId ? { college_id: collegeId } : {};
 
     // Student stats

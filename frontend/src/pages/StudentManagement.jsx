@@ -15,6 +15,7 @@ const StudentManagement = () => {
     branch: '',
     cgpa: '',
     placement_status: 'in_process',
+    career_path: 'placed',
     company: '',
     package: ''
   });
@@ -71,6 +72,9 @@ const StudentManagement = () => {
           'PLACEMENT STATUS': 'placement_status',
           'status': 'placement_status',
           'Status': 'placement_status',
+          'career path': 'career_path',
+          'career_path': 'career_path',
+          'Career Path': 'career_path',
           'company': 'company',
           'Company': 'company',
           'COMPANY': 'company',
@@ -107,6 +111,7 @@ const StudentManagement = () => {
             branch: row.branch?.toString().trim() || '',
             cgpa: parseFloat(row.cgpa) || '',
             placement_status: row.placement_status?.toString().trim() || 'in_process',
+            career_path: row.career_path?.toString().trim() || 'placed',
             company: row.company?.toString().trim() || '',
             package: row.package?.toString().trim() || '',
             email: row.email?.toString().trim() || '',
@@ -186,6 +191,7 @@ const StudentManagement = () => {
       branch: '', 
       cgpa: '', 
       placement_status: 'in_process', 
+      career_path: 'placed',
       company: '', 
       package: '' 
     });
@@ -201,6 +207,7 @@ const StudentManagement = () => {
       branch: student.branch || '',
       cgpa: student.cgpa || '',
       placement_status: student.placement_status || 'in_process',
+      career_path: student.career_path || (student.placement_status === 'placed' ? 'placed' : 'other'),
       company: student.company || '',
       package: student.package || ''
     });
@@ -329,6 +336,16 @@ const StudentManagement = () => {
                 <label>Placement Status</label>
                 <select name="placement_status" value={formData.placement_status} onChange={handleInputChange} disabled={loading}>
                   {statuses.map(s => <option key={s} value={s}>{getStatusLabel(s)}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Career Path</label>
+                <select name="career_path" value={formData.career_path} onChange={handleInputChange} disabled={loading}>
+                  <option value="placed">Placed</option>
+                  <option value="higher_studies">Higher Studies</option>
+                  <option value="entrepreneurship">Entrepreneurship</option>
+                  <option value="govt_exam_prep">Govt Exam Prep</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div className="form-group">

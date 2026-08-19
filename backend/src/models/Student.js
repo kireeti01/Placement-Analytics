@@ -73,6 +73,10 @@ const Student = sequelize.define('Student', {
     type: DataTypes.ENUM('placed', 'unplaced', 'at_risk', 'in_process'),
     defaultValue: 'in_process'
   },
+  career_path: {
+    type: DataTypes.ENUM('placed', 'higher_studies', 'entrepreneurship', 'govt_exam_prep', 'other'),
+    allowNull: true
+  },
   predicted_probability: {
     type: DataTypes.DECIMAL(5, 2),
     validate: { min: 0, max: 100 }

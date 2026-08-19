@@ -36,12 +36,16 @@ const Career = () => {
     ? (packageValues.reduce((sum, value) => sum + value, 0) / packageValues.length).toFixed(2) + ' LPA'
     : '0 LPA';
 
-  // Simulate career path distribution
-  const higherStudies = Math.floor(placedCount * 0.12);
-  const entrepreneurship = Math.floor(placedCount * 0.04);
-  const govtExams = Math.floor(placedCount * 0.03);
-  const other = Math.floor(placedCount * 0.02);
-  const actualPlaced = placedCount - higherStudies - entrepreneurship - govtExams - other;
+  const careerPathCounts = students.reduce((counts, student) => {
+    const path = student.career_path || (student.placement_status === 'placed' ? 'placed' : 'other');
+    counts[path] = (counts[path] || 0) + 1;
+    return counts;
+  }, {});
+  const higherStudies = careerPathCounts.higher_studies || 0;
+  const entrepreneurship = careerPathCounts.entrepreneurship || 0;
+  const govtExams = careerPathCounts.govt_exam_prep || 0;
+  const other = careerPathCounts.other || 0;
+  const actualPlaced = careerPathCounts.placed || 0;
 
   const careerData = {
     labels: ['Placed', 'Higher Studies', 'Entrepreneurship', 'Govt Exams', 'Other'],

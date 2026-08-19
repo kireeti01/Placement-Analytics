@@ -82,7 +82,7 @@ export const studentAPI = {
 
 // Placement APIs
 export const placementAPI = {
-  getAll: () => api.get('/placements'),
+  getAll: (params) => api.get('/placements', { params }),
   getStats: () => api.get('/placements/stats'),
   create: (data) => api.post('/placements', data),
   update: (id, data) => api.put('/placements/' + id, data),
@@ -101,7 +101,7 @@ export const companyAPI = {
 
 // Dashboard APIs
 export const dashboardAPI = {
-  getStats: () => api.get('/dashboard/stats'),
+  getStats: (params) => api.get('/dashboard/stats', { params }),
   getTrends: () => api.get('/dashboard/trends'),
 };
 

@@ -4,8 +4,9 @@
 exports.getAllPlacements = async (req, res) => {
   try {
     const where = {};
-    if (req.user.role === 'admin' && req.user.college_id) {
-      where.college_id = req.user.college_id;
+    const collegeId = req.user?.college_id || req.query.college_id;
+    if (collegeId && req.user?.role !== 'super_admin') {
+      where.college_id = collegeId;
     }
 
     const placements = await Placement.findAll({

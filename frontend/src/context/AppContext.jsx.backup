@@ -135,9 +135,6 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
-  // ============================================================
-  // ADD SINGLE STUDENT
-  // ============================================================
   const addStudent = async (student) => {
     try {
       const response = await studentAPI.create(student);
@@ -152,9 +149,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // ============================================================
-  // BULK ADD STUDENTS (CSV UPLOAD) - CORRECT VERSION
-  // ============================================================
+  // Bulk add students (CSV upload) - CLEAN TOAST VERSION
   const addBulkStudents = async (newStudents) => {
     if (!newStudents || newStudents.length === 0) {
       toast.error('No students to upload');
@@ -171,36 +166,73 @@ export const AppProvider = ({ children }) => {
       await loadStudents();
       await loadStats();
       
-      if (response.data && response.data.success > 0) {
-        toast.success(`✅ ${response.data.success} students added successfully!`);
-      }
-      
-      if (response.data && response.data.failed > 0) {
-        const errorDetails = response.data.errors || [];
-        if (errorDetails.length > 0) {
-          console.error('❌ Errors during bulk upload:', errorDetails);
-          const errorMessages = errorDetails.slice(0, 3).map(e => 
-            `Row ${e.row}: ${e.error}`
-          ).join(' | ');
-          toast.error(`❌ ${response.data.failed} students failed. ${errorMessages}`);
-        } else {
-          toast.error(`❌ ${response.data.failed} students failed to add`);
+      if (response.data) {
+        const { success, skipped, failed, skipped_details, errors } = response.data;
+        
+        // Build a single comprehensive message
+        let message = '';
+        let hasSuccess = false;
+        let hasWarning = false;
+        let hasError = false;
+        let showSuccess = false;
+        
+        if (success > 0) {
+          message += `✅ ${success} students added successfully!`;
+          hasSuccess = true;
+          showSuccess = true;
+        }
+        
+        if (skipped > 0) {
+          if (message) message += ' ';
+          message += `⏭️ ${skipped} students skipped (duplicate roll numbers)`;
+          hasWarning = true;
+          
+          // Log skipped details to console only
+          if (skipped_details && skipped_details.length > 0) {
+            console.log('⏭️ Skipped students:', skipped_details);
+          }
+        }
+        
+        if (failed > 0) {
+          if (message) message += ' ';
+          message += `❌ ${failed} students failed to add`;
+          hasError = true;
+          
+          // Log errors to console only
+          if (errors && errors.length > 0) {
+            console.error('❌ Errors during bulk upload:', errors);
+          }
+        }
+        
+        // Show SINGLE toast based on the result
+        if (showSuccess && !hasError) {
+          toast.success(message);
+        } else if (showSuccess && hasError) {
+          toast.success(message);
+        } else if (hasWarning && !showSuccess && !hasError) {
+          toast.warning(message);
+        } else if (hasError && !showSuccess) {
+          toast.error(message);
+        } else if (message) {
+          toast(message);
+        }
+        
+        // If no students were processed at all
+        if (success === 0 && skipped === 0 && failed === 0) {
+          toast.error('No students were processed. Please check the CSV format.');
         }
       }
       
       return response.data;
     } catch (error) {
       console.error('❌ Bulk add error:', error);
-      toast.error(error.response?.data?.error || 'Failed to add students');
+      toast.error('❌ ' + (error.response?.data?.error || 'Failed to upload students'));
       throw error;
     } finally {
       setIsUploading(false);
     }
   };
 
-  // ============================================================
-  // UPDATE AND DELETE
-  // ============================================================
   const updateStudent = async (id, updatedData) => {
     try {
       const response = await studentAPI.update(id, updatedData);
@@ -228,9 +260,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // ============================================================
-  // GETTER FUNCTIONS
-  // ============================================================
   const getStats = () => stats;
 
   const getBranchStats = () => {

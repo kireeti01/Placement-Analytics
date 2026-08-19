@@ -156,11 +156,6 @@ av-item }
             )}
           </div>
         </div>
-        {isGuest && (
-          <div className="switch-college-link" onClick={() => navigate('/select-college')}>
-            <FaSchool /> Switch college
-          </div>
-        )}
         <div className="switch-role-link" onClick={handleLogout}>
           <FaSignOutAlt /> Switch role / Logout
         </div>

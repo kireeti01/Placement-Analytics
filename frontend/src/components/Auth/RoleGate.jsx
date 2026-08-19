@@ -40,7 +40,6 @@ const RoleGate = () => {
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
       localStorage.setItem('username', user.username);
-      window.dispatchEvent(new Event('app:token-changed'));
       
       if (college) {
         localStorage.setItem('collegeId', college.id);
@@ -49,6 +48,8 @@ const RoleGate = () => {
         localStorage.setItem('collegeId', '');
         localStorage.setItem('collegeName', 'Platform');
       }
+
+      window.dispatchEvent(new Event('app:token-changed'));
       
       toast.success('Welcome ' + user.username + '!');
       
@@ -71,6 +72,9 @@ const RoleGate = () => {
   };
 
   const continueAsGuest = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('collegeId');
+    localStorage.removeItem('collegeName');
     localStorage.setItem('role', 'guest');
     navigate('/select-college');
   };

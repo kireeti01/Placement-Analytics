@@ -4,11 +4,9 @@ const { User, AdminAccount } = require('../models');
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-
-    // If no token, treat as guest
+    
     if (!token) {
-      req.user = null;
-      return next();
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
     const decoded = verifyToken(token);
@@ -33,44 +31,40 @@ const authMiddleware = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    req.user = null;
-    next();
+    return res.status(500).json({ error: 'Authentication error' });
   }
 };
 
 const requireSuperAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin') {
     return res.status(403).json({ error: 'Super Admin access required' });
   }
   next();
 };
 
 const requireAdmin = (req, res, next) => {
-  if (!req.user || !['super_admin', 'admin'].includes(req.user.role)) {
+  if (!['super_admin', 'admin'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
 };
 
 const requireCollegeAccess = (req, res, next) => {
-  if (req.user && req.user.role === 'super_admin') {
+  if (req.user.role === 'super_admin') {
     return next();
   }
-
+  
   const requestedCollegeId = req.params.collegeId || req.body.college_id || req.query.college_id;
-
+  
   if (!requestedCollegeId) {
-    if (req.user && req.user.college_id) {
-      req.collegeId = req.user.college_id;
-      return next();
-    }
-    return res.status(403).json({ error: 'College access required' });
+    req.collegeId = req.user.college_id;
+    return next();
   }
-
-  if (req.user && req.user.college_id !== requestedCollegeId) {
+  
+  if (req.user.college_id !== requestedCollegeId) {
     return res.status(403).json({ error: 'Access denied to this college data' });
   }
-
+  
   req.collegeId = requestedCollegeId;
   next();
 };
