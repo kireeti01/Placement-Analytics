@@ -1,0 +1,331 @@
+﻿const { Student, College } = require('../models');
+const { Op } = require('sequelize');
+
+// Get all students (with college filter)
+exports.getAllStudents = async (req, res) => {
+  try {
+    const { college_id, branch, status, search } = req.query;
+    const where = {};
+
+    if (req.user.role !== 'super_admin' && req.user.college_id) {
+      where.college_id = req.user.college_id;
+    } else if (college_id) {
+      where.college_id = college_id;
+    }
+
+    if (branch) where.branch = branch;
+    if (status) where.placement_status = status;
+    
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: '%' + search + '%' } },
+        { roll_number: { [Op.iLike]: '%' + search + '%' } },
+        { branch: { [Op.iLike]: '%' + search + '%' } }
+      ];
+    }
+
+    const students = await Student.findAll({
+      where,
+      order: [['name', 'ASC']]
+    });
+    res.json(students);
+  } catch (error) {
+    console.error('Get students error:', error);
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+};
+
+// Get student by ID
+exports.getStudentById = async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    res.json(student);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch student' });
+  }
+};
+
+// Create student
+exports.createStudent = async (req, res) => {
+  try {
+    const data = { ...req.body };
+    
+    if (req.user.role === 'admin') {
+      data.college_id = req.user.college_id;
+    } else if (req.user.role === 'super_admin' && !data.college_id) {
+      data.college_id = req.user.college_id || null;
+    }
+
+    if (data.placement_status) {
+      const statusMap = {
+        'placed': 'placed',
+        'unplaced': 'unplaced',
+        'at risk': 'at_risk',
+        'at_risk': 'at_risk',
+        'in process': 'in_process',
+        'in_process': 'in_process',
+        'not placed': 'unplaced',
+        'np': 'unplaced',
+        'pl': 'placed'
+      };
+      data.placement_status = statusMap[(data.placement_status || '').toLowerCase()] || 'in_process';
+    }
+
+    if (data.cgpa !== undefined && data.cgpa !== null && data.cgpa !== '') {
+      data.cgpa = parseFloat(data.cgpa) || 0;
+    }
+
+    const student = await Student.create({
+      ...data,
+      created_by: req.user.role === 'admin' ? null : req.user.id
+    });
+
+    res.status(201).json(student);
+  } catch (error) {
+    console.error('Create student error:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ error: 'Student with this roll number already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create student' });
+  }
+};
+
+// Bulk create students (CSV upload) - SKIP DUPLICATES VERSION
+exports.bulkCreateStudents = async (req, res) => {
+  try {
+    const { students } = req.body;
+    
+    console.log('📝 Bulk upload received:', students?.length || 0, 'students');
+    
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ error: 'No students provided' });
+    }
+
+    const results = [];
+    const errors = [];
+    const skipped = [];
+    const collegeId = req.user.college_id || null;
+
+    const statusMap = {
+      'placed': 'placed',
+      'pl': 'placed',
+      'unplaced': 'unplaced',
+      'not placed': 'unplaced',
+      'np': 'unplaced',
+      'at risk': 'at_risk',
+      'at_risk': 'at_risk',
+      'risk': 'at_risk',
+      'in process': 'in_process',
+      'in_process': 'in_process',
+      'ip': 'in_process'
+    };
+
+    for (let i = 0; i < students.length; i++) {
+      const studentData = students[i];
+      
+      try {
+        if (!studentData.name || !studentData.roll_number || !studentData.branch) {
+          errors.push({
+            row: i + 1,
+            student: studentData,
+            error: 'Missing required fields: Name, Roll Number, and Branch are required'
+          });
+          continue;
+        }
+
+        const rollNumber = studentData.roll_number.toString().trim();
+
+        // CHECK FOR DUPLICATE - SKIP IF EXISTS
+        const existingStudent = await Student.findOne({
+          where: {
+            roll_number: rollNumber,
+            college_id: collegeId
+          }
+        });
+
+        if (existingStudent) {
+          console.log(`⏭️ Skipping duplicate: ${studentData.name} (${rollNumber})`);
+          skipped.push({
+            row: i + 1,
+            student: studentData,
+            reason: `Roll number "${rollNumber}" already exists in database`
+          });
+          continue;
+        }
+
+        const data = {
+          name: studentData.name.toString().trim(),
+          roll_number: rollNumber,
+          branch: studentData.branch.toString().trim(),
+          college_id: studentData.college_id || collegeId,
+          email: studentData.email && studentData.email.toString().trim() !== '' 
+            ? studentData.email.toString().trim() 
+            : null,
+          phone: studentData.phone && studentData.phone.toString().trim() !== '' 
+            ? studentData.phone.toString().trim() 
+            : null,
+          batch: studentData.batch || '2025',
+          cgpa: parseFloat(studentData.cgpa) || 0,
+          attendance_percentage: parseFloat(studentData.attendance_percentage) || 75,
+          coding_score: parseInt(studentData.coding_score) || 0,
+          communication_score: parseInt(studentData.communication_score) || 0,
+          projects_count: parseInt(studentData.projects_count) || 0,
+          internships_count: parseInt(studentData.internships_count) || 0,
+          company: studentData.company && studentData.company.toString().trim() !== '' 
+            ? studentData.company.toString().trim() 
+            : null,
+          package: studentData.package && studentData.package.toString().trim() !== '' 
+            ? studentData.package.toString().trim() 
+            : null,
+          placement_status: 'in_process'
+        };
+
+        if (studentData.placement_status) {
+          const statusKey = studentData.placement_status.toString().toLowerCase().trim();
+          data.placement_status = statusMap[statusKey] || 'in_process';
+        }
+
+        const student = await Student.create({
+          ...data,
+          created_by: req.user.role === 'admin' ? null : req.user.id
+        });
+
+        results.push(student);
+        console.log(`✅ Created: ${student.name} (${student.roll_number})`);
+
+      } catch (error) {
+        console.error(`❌ Error at row ${i + 1}:`, error.message);
+        errors.push({
+          row: i + 1,
+          student: studentData,
+          error: error.message
+        });
+      }
+    }
+
+    console.log(`✅ Success: ${results.length}, Skipped: ${skipped.length}, Failed: ${errors.length}`);
+
+    const response = {
+      success: results.length,
+      skipped: skipped.length,
+      failed: errors.length,
+      students: results,
+      total: students.length
+    };
+
+    if (skipped.length > 0) {
+      response.skipped_details = skipped;
+    }
+    if (errors.length > 0) {
+      response.errors = errors;
+    }
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Bulk create error:', error);
+    res.status(500).json({ 
+      error: 'Failed to create students: ' + error.message 
+    });
+  }
+};
+
+// Update student
+exports.updateStudent = async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const data = { ...req.body };
+
+    if (data.placement_status) {
+      const statusMap = {
+        'placed': 'placed',
+        'unplaced': 'unplaced',
+        'at risk': 'at_risk',
+        'at_risk': 'at_risk',
+        'in process': 'in_process',
+        'in_process': 'in_process',
+        'not placed': 'unplaced',
+        'np': 'unplaced',
+        'pl': 'placed'
+      };
+      data.placement_status = statusMap[(data.placement_status || '').toLowerCase()] || 'in_process';
+    }
+
+    if (data.cgpa !== undefined && data.cgpa !== null && data.cgpa !== '') {
+      data.cgpa = parseFloat(data.cgpa) || 0;
+    }
+
+    await student.update(data);
+    res.json(student);
+  } catch (error) {
+    console.error('Update student error:', error);
+    res.status(500).json({ error: 'Failed to update student' });
+  }
+};
+
+// Delete student
+exports.deleteStudent = async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    await student.destroy();
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+};
+
+// Get students by college
+exports.getStudentsByCollege = async (req, res) => {
+  try {
+    const { collegeId } = req.params;
+    const students = await Student.findAll({
+      where: { college_id: collegeId },
+      order: [['name', 'ASC']]
+    });
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+};
+
+// Get student statistics
+exports.getStudentStats = async (req, res) => {
+  try {
+    const collegeId = req.user.role === 'super_admin' ? null : req.user.college_id;
+    const where = collegeId ? { college_id: collegeId } : {};
+
+    const total = await Student.count({ where });
+    const placed = await Student.count({ where: { ...where, placement_status: 'placed' } });
+    const unplaced = await Student.count({ where: { ...where, placement_status: 'unplaced' } });
+    const atRisk = await Student.count({ where: { ...where, placement_status: 'at_risk' } });
+    const inProcess = await Student.count({ where: { ...where, placement_status: 'in_process' } });
+
+    const branches = await Student.findAll({
+      where,
+      attributes: ['branch', 'placement_status'],
+      group: ['branch', 'placement_status']
+    });
+
+    res.json({
+      total,
+      placed,
+      unplaced,
+      atRisk,
+      inProcess,
+      branches
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get student stats' });
+  }
+};

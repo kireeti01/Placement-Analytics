@@ -1,0 +1,9 @@
+services:
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: campusplacement-ai-service
+    ports:
+      - "8001:8001"
+    restart: unless-stopped

@@ -1,0 +1,51 @@
+﻿=== SuperAdmin.jsx - Changes needed ===
+
+1. Find the handleResetPassword function and replace with:
+
+const handleResetPassword = (admin) => {
+  console.log('🔑 Handling reset password for admin:', admin);
+  const newPassword = 'College@' + Math.floor(Math.random() * 10000) + '!';
+  console.log('📝 Generated new password:', newPassword);
+  
+  setResetPasswordData({
+    adminId: admin.id,
+    username: admin.username,
+    email: admin.email,
+    newPassword: newPassword
+  });
+  setShowResetPassword(true);
+};
+
+2. Find the confirmResetPassword function and replace with:
+
+const confirmResetPassword = async () => {
+  try {
+    console.log('🔑 Resetting password for admin:', resetPasswordData.adminId);
+    console.log('📝 New password:', resetPasswordData.newPassword);
+    
+    const response = await collegeAPI.resetAdminPassword(
+      resetPasswordData.adminId, 
+      resetPasswordData.newPassword
+    );
+    
+    console.log('✅ Reset password response:', response);
+    
+    toast.success('✅ Password reset successfully!');
+    toast.info('New password: ' + resetPasswordData.newPassword, { duration: 10000 });
+    setShowResetPassword(false);
+    loadData();
+  } catch (error) {
+    console.error('❌ Reset password error:', error);
+    console.error('❌ Error response:', error.response?.data);
+    
+    if (error.response && error.response.status === 200) {
+      toast.success('✅ Password reset successfully!');
+      toast.info('New password: ' + resetPasswordData.newPassword, { duration: 10000 });
+      setShowResetPassword(false);
+      loadData();
+    } else {
+      const errorMsg = error.response?.data?.error || 'Unknown error';
+      toast.error('❌ Failed to reset password: ' + errorMsg);
+    }
+  }
+};
