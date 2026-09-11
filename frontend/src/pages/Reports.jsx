@@ -51,8 +51,19 @@ const Reports = () => {
     return 0;
   };
 
-  const getOfferCount = (studentId) => {
-    return placements.filter(p => p.student_id === studentId || p.Student?.id === studentId).length;
+  const offerCounts = placements.reduce((counts, placement) => {
+    const studentId = placement.student_id || placement.Student?.id;
+    if (studentId !== undefined && studentId !== null) {
+      const key = String(studentId);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, {});
+
+  const getOfferCount = (student) => {
+    const count = offerCounts[String(student.id)] || 0;
+    // Legacy student rows may have an offer without a Placement record.
+    return count || (student.company && student.package ? 1 : 0);
   };
 
   const getPlacementPackageValues = () => {
@@ -156,7 +167,7 @@ const Reports = () => {
         student.roll_number || student.roll || '-',
         student.cgpa || '-',
         student.placement_status || '-',
-        getOfferCount(student.id),
+        getOfferCount(student),
         student.company || '-',
         student.package || '-'
       ])
