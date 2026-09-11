@@ -14,7 +14,8 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     secure: false,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+      // Gmail displays app passwords with spaces; whitespace is not part of the credential.
+      pass: process.env.EMAIL_PASS.replace(/\s/g, '')
     }
   });
 }
@@ -27,7 +28,7 @@ const sendCredentialsEmail = async (to, username, password, collegeName) => {
     console.log('To:', to);
     console.log('Username:', username);
     console.log('Password:', password);
-    return { success: true, message: 'Credentials generated (email not sent - no SMTP config)' };
+    return { success: false, message: 'Credentials generated, but email was not sent because SMTP is not configured' };
   }
 
   try {
@@ -92,9 +93,28 @@ const sendCredentialsEmail = async (to, username, password, collegeName) => {
       html
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log('Email sent to:', to);
-    return { success: true, message: 'Email sent successfully' };
+    const info = await transporter.sendMail(mailOptions);
+    const accepted = info.accepted || [];
+    const rejected = info.rejected || [];
+
+    if (!accepted.includes(to) || rejected.includes(to)) {
+      console.error('Email recipient rejected:', { to, accepted, rejected });
+      return {
+        success: false,
+        message: 'SMTP rejected the recipient address',
+        accepted,
+        rejected
+      };
+    }
+
+    console.log('Email accepted by SMTP:', { to, messageId: info.messageId });
+    return {
+      success: true,
+      message: 'Email accepted by SMTP; check the recipient inbox or spam folder',
+      messageId: info.messageId,
+      accepted,
+      rejected
+    };
   } catch (error) {
     console.error('Email error:', error);
     return { success: false, error: error.message };
@@ -110,7 +130,7 @@ const sendSupportRequestEmail = async ({ recipient, name, email, collegeName, us
     console.log('Support request email not sent (no transporter configured)');
     console.log('To:', to);
     console.log('From:', supportSender);
-    return { success: true, message: 'Support request received (email not sent - no SMTP config)' };
+    return { success: false, message: 'Support request received, but email was not sent because SMTP is not configured' };
   }
 
   try {
@@ -121,7 +141,7 @@ const sendSupportRequestEmail = async ({ recipient, name, email, collegeName, us
       '<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;} .container{max-width:600px;margin:0 auto;padding:20px;} .card{background:#f8f9fa;padding:20px;border-radius:10px;border:1px solid #dee2e6;} .label{font-weight:bold;color:#1e3a5f;} .value{margin-left:6px;}</style></head>' +
       '<body><div class="container"><div class="card"><h2>Admin Credentials Help Request</h2><p>An admin has requested help with their CampusPlacement credentials.</p><p><span class="label">Name:</span><span class="value">' + (name || 'N/A') + '</span></p><p><span class="label">Email:</span><span class="value">' + (email || 'N/A') + '</span></p><p><span class="label">College:</span><span class="value">' + (collegeName || 'N/A') + '</span></p><p><span class="label">Username:</span><span class="value">' + (username || 'N/A') + '</span></p><p><span class="label">Request Time:</span><span class="value">' + new Date().toLocaleString() + '</span></p><p><span class="label">Issue:</span><span class="value">' + (message || 'N/A') + '</span></p><p style="margin-top:16px;">Please review this request and help recover or reset the account access.</p></div></div></body></html>';
 
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: supportSender,
       to,
       replyTo: email || supportSender,
@@ -129,7 +149,20 @@ const sendSupportRequestEmail = async ({ recipient, name, email, collegeName, us
       html
     });
 
-    return { success: true, message: 'Support request email sent successfully' };
+    const accepted = info.accepted || [];
+    const rejected = info.rejected || [];
+    if (!accepted.includes(to) || rejected.includes(to)) {
+      console.error('Support email recipient rejected:', { to, accepted, rejected });
+      return { success: false, message: 'SMTP rejected the recipient address', accepted, rejected };
+    }
+
+    return {
+      success: true,
+      message: 'Support request accepted by SMTP',
+      messageId: info.messageId,
+      accepted,
+      rejected
+    };
   } catch (error) {
     console.error('Support email error:', error);
     return { success: false, error: error.message };

@@ -124,7 +124,7 @@ const Offers = () => {
       if (doughnutInstance.current) doughnutInstance.current.destroy();
       if (packageInstance.current) packageInstance.current.destroy();
     };
-  }, [students]);
+  }, [students, placements]);
 
   const stats = [
     { label: 'Students with 1 Offer', value: oneOffer, icon: FaFileContract, color: 'blue', change: (totalPlaced > 0 ? Math.round((oneOffer/totalPlaced)*100) : 0) + '% of placed' },
@@ -133,16 +133,19 @@ const Offers = () => {
     { label: 'Students with 4+ Offers', value: fourPlusOffers, icon: FaCrown, color: 'teal', change: (totalPlaced > 0 ? Math.round((fourPlusOffers/totalPlaced)*100) : 0) + '% of placed' },
   ];
 
-  // Top performers (students with highest CGPA)
+  // Top performers among students with multiple offers.
   const topPerformers = students
-    .filter(s => s.placement_status === 'placed')
-    .sort((a, b) => parseFloat(b.cgpa || 0) - parseFloat(a.cgpa || 0))
+    .filter(s => s.placement_status === 'placed' && getOfferCount(s.id) >= 2)
+    .sort((a, b) => {
+      const offerDifference = getOfferCount(b.id) - getOfferCount(a.id);
+      return offerDifference || parseFloat(b.cgpa || 0) - parseFloat(a.cgpa || 0);
+    })
     .slice(0, 5)
     .map(s => ({
       name: s.name,
       branch: s.branch,
       cgpa: s.cgpa,
-      offers: Math.min(Math.max(getOfferCount(s.id), 1), 4),
+      offers: getOfferCount(s.id),
       companies: s.company || 'Multiple',
       highest: s.package || 'N/A'
     }));

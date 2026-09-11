@@ -37,7 +37,11 @@ const SuperAdminCollegeRequests = () => {
 
     try {
       const response = await collegeAPI.approve(requestId);
-      toast.success('College approved! Credentials generated.');
+      if (response.data?.email?.success) {
+        toast.success('College approved! Credentials accepted by the email provider. Check inbox or spam.');
+      } else {
+        toast.error('College approved, but the credentials email was not sent. Check the backend SMTP configuration.');
+      }
       loadRequests(); // Reload the list
       setSelectedRequest(null);
     } catch (error) {

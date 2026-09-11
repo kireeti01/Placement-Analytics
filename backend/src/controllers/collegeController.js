@@ -234,20 +234,25 @@ exports.approveRequest = async (req, res) => {
     console.log('Admin account created:', finalUsername);
     console.log('Password (plain):', plainPassword);
 
+    let emailResult;
     try {
-      await sendCredentialsEmail(
+      emailResult = await sendCredentialsEmail(
         request.admin_email,
         finalUsername,
         plainPassword,
         college.name
       );
-      console.log('Email sent to:', request.admin_email);
+      if (!emailResult.success) {
+        console.error('Email sending failed:', emailResult.error || emailResult.message);
+      }
     } catch (emailError) {
       console.error('Email sending failed:', emailError.message);
+      emailResult = { success: false, error: emailError.message };
     }
 
     res.status(200).json({
       message: 'College approved and admin created',
+      email: emailResult,
       college: {
         id: college.id,
         name: college.name,

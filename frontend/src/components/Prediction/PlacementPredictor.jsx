@@ -122,7 +122,7 @@ const PlacementPredictor = () => {
     probability += (parseInt(projects) || 0) / 5 * 8;
     probability += (parseInt(communication) || 0) / 100 * 3;
     
-    const branchWeights = { cse: 8, ece: 6, eee: 5, mech: 4, civil: 3 };
+    const branchWeights = { cse: 8, 'cse-aiml': 8, 'cse-ds': 8, ece: 6, eee: 5, mech: 4, civil: 3 };
     probability += branchWeights[branch] || 0;
     probability += (selectedSkills.length / 5) * 2;
     probability = Math.min(Math.round(probability), 98);
@@ -211,6 +211,8 @@ const PlacementPredictor = () => {
             >
               <option value="">Select Branch</option>
               <option value="cse">CSE</option>
+              <option value="cse-aiml">CSE-AIML</option>
+              <option value="cse-ds">CSE-DS</option>
               <option value="ece">ECE</option>
               <option value="eee">EEE</option>
               <option value="mech">Mechanical</option>

@@ -137,6 +137,8 @@ const Prediction = () => {
               <select value={formData.branch} onChange={(e) => setFormData({...formData, branch: e.target.value})}>
                 <option value="">Select</option>
                 <option value="cse">CSE</option>
+                <option value="cse-aiml">CSE-AIML</option>
+                <option value="cse-ds">CSE-DS</option>
                 <option value="ece">ECE</option>
                 <option value="eee">EEE</option>
                 <option value="mech">Mechanical</option>

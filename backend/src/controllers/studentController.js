@@ -1,4 +1,4 @@
-﻿const { Student, College } = require('../models');
+﻿const { Student, College, Placement, Company } = require('../models');
 const { Op } = require('sequelize');
 
 // Get all students (with college filter) - FIXED FOR PARENT/GUEST ACCESS
@@ -144,6 +144,45 @@ exports.bulkCreateStudents = async (req, res) => {
       'ip': 'in_process'
     };
 
+    const splitOffers = (value) => String(value || '')
+      .split(/[;|]/)
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    const addOffers = async (student, studentData) => {
+      const companies = splitOffers(studentData.company || studentData.companies);
+      const packages = splitOffers(studentData.package || studentData.packages);
+      const offers = [];
+
+      for (let offerIndex = 0; offerIndex < companies.length; offerIndex++) {
+        const companyName = companies[offerIndex];
+        const packageValue = packages[offerIndex] || packages[0];
+        const packageAmount = parseFloat(String(packageValue || '').replace(/[^0-9.]/g, ''));
+
+        if (!companyName || !Number.isFinite(packageAmount)) continue;
+
+        const [company] = await Company.findOrCreate({
+          where: { name: companyName },
+          defaults: { name: companyName },
+        });
+        const existingOffer = await Placement.findOne({
+          where: { student_id: student.id, company_id: company.id, package_amount: packageAmount },
+        });
+
+        if (!existingOffer) {
+          offers.push(await Placement.create({
+            student_id: student.id,
+            company_id: company.id,
+            college_id: student.college_id,
+            package_amount: packageAmount,
+            status: 'offered'
+          }));
+        }
+      }
+
+      return offers;
+    };
+
     for (let i = 0; i < students.length; i++) {
       const studentData = students[i];
 
@@ -167,12 +206,18 @@ exports.bulkCreateStudents = async (req, res) => {
         });
 
         if (existingStudent) {
-          console.log(`⏭️ Skipping duplicate: ${studentData.name} (${rollNumber})`);
-          skipped.push({
-            row: i + 1,
-            student: studentData,
-            reason: `Roll number "${rollNumber}" already exists in database`
-          });
+          const offers = await addOffers(existingStudent, studentData);
+          if (offers.length > 0) {
+            results.push(existingStudent);
+            console.log(`✅ Added ${offers.length} offer(s) to: ${existingStudent.name} (${rollNumber})`);
+          } else {
+            console.log(`⏭️ Skipping duplicate: ${studentData.name} (${rollNumber})`);
+            skipped.push({
+              row: i + 1,
+              student: studentData,
+              reason: `Roll number "${rollNumber}" already exists in database and no new offer was found`
+            });
+          }
           continue;
         }
 
@@ -194,6 +239,12 @@ exports.bulkCreateStudents = async (req, res) => {
           communication_score: parseInt(studentData.communication_score) || 0,
           projects_count: parseInt(studentData.projects_count) || 0,
           internships_count: parseInt(studentData.internships_count) || 0,
+          skills: Array.isArray(studentData.skills)
+            ? studentData.skills
+            : String(studentData.skills || '').split(',').map(skill => skill.trim()).filter(Boolean),
+          career_path: studentData.career_path && studentData.career_path.toString().trim() !== ''
+            ? studentData.career_path.toString().trim()
+            : null,
           company: studentData.company && studentData.company.toString().trim() !== ''
             ? studentData.company.toString().trim()
             : null,
@@ -213,8 +264,10 @@ exports.bulkCreateStudents = async (req, res) => {
           created_by: req.user.role === 'admin' ? null : req.user.id
         });
 
+        const offers = await addOffers(student, studentData);
+
         results.push(student);
-        console.log(`✅ Created: ${student.name} (${student.roll_number})`);
+        console.log(`✅ Created: ${student.name} (${student.roll_number}) with ${offers.length} offer(s)`);
 
       } catch (error) {
         console.error(`❌ Error at row ${i + 1}:`, error.message);

@@ -104,7 +104,7 @@ const RoleGate = () => {
         ...supportForm,
         username: supportForm.username || usernameFromLogin
       });
-      toast.success('Your issue has been sent to the super admin team.');
+      toast.success('Your issue was accepted by the email provider.');
       setShowForgotModal(false);
       setSupportForm({ name: '', email: '', collegeName: '', username: '', message: '' });
     } catch (error) {

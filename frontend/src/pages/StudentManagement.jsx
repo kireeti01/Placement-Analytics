@@ -15,13 +15,13 @@ const StudentManagement = () => {
     branch: '',
     cgpa: '',
     placement_status: 'in_process',
-    career_path: 'placed',
+    career_path: 'other',
     skills: '',
     company: '',
     package: ''
   });
 
-  const branches = ['CSE', 'ECE', 'EEE', 'Mechanical', 'Civil', 'IT', 'Chemical'];
+  const branches = ['CSE', 'CSE-AIML', 'CSE-DS', 'ECE', 'EEE', 'Mechanical', 'Civil', 'IT', 'Chemical'];
   const statuses = ['placed', 'unplaced', 'at_risk', 'in_process'];
 
   const handleCSVUpload = (event) => {
@@ -82,12 +82,18 @@ const StudentManagement = () => {
           'company': 'company',
           'Company': 'company',
           'COMPANY': 'company',
+          'companies': 'companies',
+          'Companies': 'companies',
+          'offer companies': 'companies',
           'package': 'package',
           'Package': 'package',
           'PACKAGE': 'package',
           'package (lpa)': 'package',
           'Package (LPA)': 'package',
           'PACKAGE (LPA)': 'package',
+          'packages': 'packages',
+          'Packages': 'packages',
+          'offer packages': 'packages',
           'email': 'email',
           'Email': 'email',
           'phone': 'phone',
@@ -115,10 +121,14 @@ const StudentManagement = () => {
             branch: row.branch?.toString().trim() || '',
             cgpa: parseFloat(row.cgpa) || '',
             placement_status: row.placement_status?.toString().trim() || 'in_process',
-            career_path: row.career_path?.toString().trim() || 'placed',
+            career_path: row.career_path?.toString().trim() || (
+              row.placement_status?.toString().trim().toLowerCase() === 'placed' ? 'placed' : 'other'
+            ),
             skills: (row.skills || '').toString().split(',').map(skill => skill.trim()).filter(Boolean),
             company: row.company?.toString().trim() || '',
             package: row.package?.toString().trim() || '',
+            companies: row.companies?.toString().trim() || '',
+            packages: row.packages?.toString().trim() || '',
             email: row.email?.toString().trim() || '',
             phone: row.phone?.toString().trim() || '',
             batch: row.batch?.toString().trim() || '2025'
@@ -197,7 +207,7 @@ const StudentManagement = () => {
       branch: '', 
       cgpa: '', 
       placement_status: 'in_process', 
-      career_path: 'placed',
+      career_path: 'other',
       skills: '',
       company: '', 
       package: '' 

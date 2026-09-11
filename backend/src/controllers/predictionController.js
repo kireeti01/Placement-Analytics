@@ -6,6 +6,8 @@ const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8001';
 
 const branchWeights = {
   cse: 8,
+  'cse-aiml': 8,
+  'cse-ds': 8,
   ece: 6,
   eee: 5,
   mech: 4,
