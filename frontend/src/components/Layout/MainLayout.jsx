@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import { 
   FaChartPie, FaMoneyBillWave, FaCodeBranch, FaBuilding, 
@@ -63,15 +63,19 @@ const MainLayout = () => {
         ['Highest Package', stats.highestPackage || '0 LPA'],
         [''],
         ['Student Name', 'Roll Number', 'Branch', 'CGPA', 'Placement Status', 'Company', 'Package (LPA)'],
-        ...students.map((student) => [
-          student.name || '',
-          student.roll_number || '',
-          student.branch || '',
-          student.cgpa || '',
-          student.placement_status || '',
-          student.company || '',
-          student.package || ''
-        ])
+        ...students.map((student) => {
+          const b = (student.branch || '').toString().trim();
+          const branchFormatted = (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') ? 'MECH' : b;
+          return [
+            student.name || '',
+            student.roll_number || '',
+            branchFormatted,
+            student.cgpa || '',
+            student.placement_status || '',
+            student.company || '',
+            student.package || ''
+          ];
+        })
       ];
 
       const csvContent = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');

@@ -99,6 +99,8 @@ app.listen(PORT, async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connected successfully');
+    // Ensure legacy branch names are standardized in database
+    await sequelize.query(`UPDATE students SET branch = 'MECH' WHERE LOWER(branch) = 'mechanical' OR LOWER(branch) = 'mech';`).catch(err => console.log('Branch cleanup note:', err.message));
   } catch (error) {
     console.error('Database connection failed:', error.message);
     console.log('Make sure PostgreSQL is running and database exists');

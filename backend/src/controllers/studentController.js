@@ -1,4 +1,4 @@
-﻿const { Student, College, Placement, Company } = require('../models');
+const { Student, College, Placement, Company } = require('../models');
 const { Op } = require('sequelize');
 
 // Get all students (with college filter) - FIXED FOR PARENT/GUEST ACCESS
@@ -48,8 +48,21 @@ exports.getAllStudents = async (req, res) => {
       order: [['name', 'ASC']]
     });
 
-    console.log(`✅ Returning ${students.length} students`);
-    res.json(students);
+    const formattedStudents = students.map(s => {
+      const plain = s.toJSON ? s.toJSON() : { ...s };
+      if (plain.branch) {
+        const b = plain.branch.toString().trim();
+        if (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') {
+          plain.branch = 'MECH';
+        } else {
+          plain.branch = b;
+        }
+      }
+      return plain;
+    });
+
+    console.log(`✅ Returning ${formattedStudents.length} students`);
+    res.json(formattedStudents);
   } catch (error) {
     console.error('Get students error:', error);
     res.status(500).json({ error: 'Failed to fetch students' });
@@ -63,7 +76,14 @@ exports.getStudentById = async (req, res) => {
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
-    res.json(student);
+    const plain = student.toJSON ? student.toJSON() : { ...student };
+    if (plain.branch) {
+      const b = plain.branch.toString().trim();
+      if (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') {
+        plain.branch = 'MECH';
+      }
+    }
+    res.json(plain);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch student' });
   }
@@ -78,6 +98,11 @@ exports.createStudent = async (req, res) => {
       data.college_id = req.user.college_id;
     } else if (req.user.role === 'super_admin' && !data.college_id) {
       data.college_id = req.user.college_id || null;
+    }
+
+    if (data.branch) {
+      const b = data.branch.toString().trim();
+      data.branch = (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') ? 'MECH' : b;
     }
 
     if (data.placement_status) {
@@ -221,10 +246,15 @@ exports.bulkCreateStudents = async (req, res) => {
           continue;
         }
 
+        let rawBranch = (studentData.branch || '').toString().trim();
+        if (rawBranch.toLowerCase() === 'mechanical' || rawBranch.toLowerCase() === 'mech') {
+          rawBranch = 'MECH';
+        }
+
         const data = {
           name: studentData.name.toString().trim(),
           roll_number: rollNumber,
-          branch: studentData.branch.toString().trim(),
+          branch: rawBranch || 'CSE',
           college_id: studentData.college_id || collegeId,
           email: studentData.email && studentData.email.toString().trim() !== ''
             ? studentData.email.toString().trim()
@@ -315,6 +345,11 @@ exports.updateStudent = async (req, res) => {
     }
 
     const data = { ...req.body };
+
+    if (data.branch) {
+      const b = data.branch.toString().trim();
+      data.branch = (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') ? 'MECH' : b;
+    }
 
     if (data.placement_status) {
       const statusMap = {

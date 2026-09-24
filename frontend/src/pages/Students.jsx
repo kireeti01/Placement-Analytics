@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaSearch, FaSchool, FaBuilding, FaMoneyBillWave, FaUserGraduate, FaChartLine } from 'react-icons/fa';
 import { useAppContext } from '../context/AppContext';
 
@@ -18,15 +18,23 @@ const Students = () => {
     }
   }, [isGuest, collegeIdFromStorage]);
 
+  const formatBranch = (branch) => {
+    if (!branch) return '-';
+    const b = branch.toString().trim();
+    if (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') return 'MECH';
+    return b;
+  };
+
   // Get unique branches and statuses
-  const branches = ['All Branches', ...new Set(students.map(s => s.branch))];
-  const statuses = ['All Status', ...new Set(students.map(s => s.placement_status))];
+  const branches = ['All Branches', ...new Set(students.map(s => formatBranch(s.branch)).filter(b => b && b !== '-'))];
+  const statuses = ['All Status', ...new Set(students.map(s => s.placement_status).filter(Boolean))];
 
   const filteredStudents = students.filter(student => {
+    const sBranch = formatBranch(student.branch);
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           student.roll_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          student.branch.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesBranch = selectedBranch === 'All Branches' || student.branch === selectedBranch;
+                          sBranch.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBranch = selectedBranch === 'All Branches' || sBranch === selectedBranch;
     const matchesStatus = selectedStatus === 'All Status' || student.placement_status === selectedStatus;
     return matchesSearch && matchesBranch && matchesStatus;
   });
@@ -155,7 +163,7 @@ const Students = () => {
                 <div className="student-info">
                   <h4>{student.name}</h4>
                   <p style={{ fontSize: '12px', color: '#6c757d' }}>
-                    {student.branch} - Roll: {student.roll_number}
+                    {formatBranch(student.branch)} - Roll: {student.roll_number}
                   </p>
                 </div>
               </div>
@@ -195,7 +203,7 @@ const Students = () => {
                   <div className="label">Company</div>
                 </div>
                 <div className="student-stat">
-                  <div className="value">{student.branch}</div>
+                  <div className="value">{formatBranch(student.branch)}</div>
                   <div className="label">Branch</div>
                 </div>
               </div>

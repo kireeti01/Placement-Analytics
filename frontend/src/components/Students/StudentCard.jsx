@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 const StudentCard = ({ student }) => {
   const getStatusBadge = (status) => {
@@ -15,13 +15,20 @@ const StudentCard = ({ student }) => {
     ? (student.placement_status === 'placed' ? 'Placed' : student.placement_status === 'unplaced' ? 'Unplaced' : 'At Risk')
     : (student.status ? (student.status.charAt(0).toUpperCase() + student.status.slice(1)) : 'Unknown');
 
+  const formatBranch = (branch) => {
+    if (!branch) return '-';
+    const b = branch.toString().trim();
+    if (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') return 'MECH';
+    return b;
+  };
+
   return (
     <div className="student-card">
       <div className="student-header">
         <div className="student-avatar">{getInitials(student.name)}</div>
         <div className="student-info">
           <h4>{student.name}</h4>
-          <p>{student.branch} - Roll: {student.roll_number || student.roll || '-'}</p>
+          <p>{formatBranch(student.branch)} - Roll: {student.roll_number || student.roll || '-'}</p>
         </div>
       </div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>

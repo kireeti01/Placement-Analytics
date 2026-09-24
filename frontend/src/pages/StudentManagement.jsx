@@ -195,6 +195,7 @@ const StudentManagement = () => {
 
     const studentData = {
       ...formData,
+      branch: formatBranch(formData.branch),
       cgpa: parseFloat(formData.cgpa) || 0,
       skills: formData.skills.split(',').map(skill => skill.trim()).filter(Boolean)
     };
@@ -347,7 +348,7 @@ const StudentManagement = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Branch *</label>
-                <select name="branch" value={formData.branch} onChange={handleInputChange} required disabled={loading}>
+                <select name="branch" value={formData.branch ? (formData.branch.toLowerCase() === 'mechanical' || formData.branch.toLowerCase() === 'mech' ? 'MECH' : formData.branch) : ''} onChange={handleInputChange} required disabled={loading}>
                   <option value="">Select Branch</option>
                   {branches.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>

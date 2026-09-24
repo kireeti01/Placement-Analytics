@@ -1,4 +1,4 @@
-﻿import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { studentAPI, dashboardAPI, placementAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -36,6 +36,15 @@ export const AppProvider = ({ children }) => {
     setStats(emptyStats);
   };
 
+  const normalizeStudent = (s) => {
+    if (!s) return s;
+    let b = s.branch ? s.branch.toString().trim() : '';
+    if (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') {
+      b = 'MECH';
+    }
+    return { ...s, branch: b };
+  };
+
   const loadStudents = async (params = {}) => {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
@@ -56,7 +65,7 @@ export const AppProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await studentAPI.getAll(requestParams);
-      const data = response.data || [];
+      const data = (response.data || []).map(normalizeStudent);
       setStudents(data);
       return data;
     } catch (error) {
@@ -157,7 +166,7 @@ export const AppProvider = ({ children }) => {
   const addStudent = async (student) => {
     try {
       const response = await studentAPI.create(student);
-      setStudents(prev => [...prev, response.data]);
+      setStudents(prev => [...prev, normalizeStudent(response.data)]);
       await loadStats();
       toast.success('✅ Student added successfully!');
       return response.data;
@@ -249,7 +258,7 @@ export const AppProvider = ({ children }) => {
   const updateStudent = async (id, updatedData) => {
     try {
       const response = await studentAPI.update(id, updatedData);
-      setStudents(prev => prev.map(s => s.id === id ? response.data : s));
+      setStudents(prev => prev.map(s => s.id === id ? normalizeStudent(response.data) : s));
       await loadStats();
       toast.success('✅ Student updated successfully!');
       return response.data;
@@ -278,7 +287,10 @@ export const AppProvider = ({ children }) => {
   const getBranchStats = () => {
     const branches = {};
     students.forEach(s => {
-      const branch = s.branch || 'Unknown';
+      let branch = s.branch ? s.branch.toString().trim() : 'Unknown';
+      if (branch.toLowerCase() === 'mechanical' || branch.toLowerCase() === 'mech') {
+        branch = 'MECH';
+      }
       if (!branches[branch]) {
         branches[branch] = { total: 0, placed: 0, unplaced: 0, atRisk: 0 };
       }
