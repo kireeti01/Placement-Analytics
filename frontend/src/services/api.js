@@ -3,22 +3,35 @@ import toast from 'react-hot-toast';
 
 // API Base URL
 const getBaseUrl = () => {
-  let envUrl = import.meta.env.VITE_API_URL;
-
-  // If on Render and VITE_API_URL is missing or localhost, automatically route to Render backend
-  if ((!envUrl || envUrl.includes('localhost')) && typeof window !== 'undefined') {
-    if (window.location.hostname.includes('onrender.com')) {
-      return 'https://campusplacement-backend.onrender.com/api';
-    }
+  // 1. If running in the browser on Render, direct traffic to production backend
+  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+    return 'https://campusplacement-backend.onrender.com/api';
   }
 
-  if (!envUrl) return 'http://localhost:5000/api';
-  if (envUrl.endsWith('/api')) return envUrl;
+  let envUrl = import.meta.env.VITE_API_URL;
+
+  // 2. If no environment variable, fallback to localhost
+  if (!envUrl || envUrl.trim() === '' || envUrl === '/') {
+    return 'http://localhost:5000/api';
+  }
+
+  envUrl = envUrl.trim();
+
+  // 3. If protocol is missing, prepend https://
+  if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
+    envUrl = 'https://' + envUrl;
+  }
+
+  // 4. Ensure it ends with /api
+  if (envUrl.endsWith('/api')) {
+    return envUrl;
+  }
   return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
 };
 
 const API_URL = getBaseUrl();
 console.log('🔗 API Base URL configured:', API_URL);
+
 
 const api = axios.create({
   baseURL: API_URL,
