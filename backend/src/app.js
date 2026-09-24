@@ -78,6 +78,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Direct test email endpoint
+const { testSMTP, sendCredentialsEmail } = require('./services/emailService');
+app.all('/api/test-email', async (req, res) => {
+  const targetEmail = req.query.to || req.body.to || 'kireeti213@gmail.com';
+  const result = await sendCredentialsEmail(targetEmail, 'admin_demo', 'Demo@12345', 'Demo College');
+  res.json(result);
+});
+
+
 // Error handler
 app.use(errorHandler);
 
