@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   FaBrain, FaCalculator, FaExclamationTriangle, FaChartLine, 
@@ -141,7 +141,7 @@ const Prediction = () => {
                 <option value="cse-ds">CSE-DS</option>
                 <option value="ece">ECE</option>
                 <option value="eee">EEE</option>
-                <option value="mech">Mechanical</option>
+                <option value="mech">MECH</option>
                 <option value="civil">Civil</option>
               </select>
             </div>

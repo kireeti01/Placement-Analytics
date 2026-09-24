@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { FaPlus, FaUpload, FaEdit, FaTrash, FaSave, FaTimes, FaDownload } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import Papa from 'papaparse';
@@ -21,8 +21,16 @@ const StudentManagement = () => {
     package: ''
   });
 
-  const branches = ['CSE', 'CSE-AIML', 'CSE-DS', 'ECE', 'EEE', 'Mechanical', 'Civil', 'IT', 'Chemical'];
+  const branches = ['CSE', 'CSE-AIML', 'CSE-DS', 'ECE', 'EEE', 'MECH', 'Civil', 'IT', 'Chemical'];
   const statuses = ['placed', 'unplaced', 'at_risk', 'in_process'];
+
+  const formatBranch = (branch) => {
+    if (!branch) return '-';
+    const b = branch.toString().trim();
+    if (b.toLowerCase() === 'mechanical' || b.toLowerCase() === 'mech') return 'MECH';
+    return b;
+  };
+
 
   const handleCSVUpload = (event) => {
     const file = event.target.files[0];
@@ -118,7 +126,7 @@ const StudentManagement = () => {
           .map(row => ({
             name: row.name?.toString().trim() || '',
             roll_number: row.roll_number?.toString().trim() || '',
-            branch: row.branch?.toString().trim() || '',
+            branch: formatBranch(row.branch),
             cgpa: parseFloat(row.cgpa) || '',
             placement_status: row.placement_status?.toString().trim() || 'in_process',
             career_path: row.career_path?.toString().trim() || (
@@ -221,7 +229,7 @@ const StudentManagement = () => {
     setFormData({
       name: student.name || '',
       roll_number: student.roll_number || '',
-      branch: student.branch || '',
+      branch: formatBranch(student.branch),
       cgpa: student.cgpa || '',
       placement_status: student.placement_status || 'in_process',
       career_path: student.career_path || (student.placement_status === 'placed' ? 'placed' : 'other'),
@@ -425,7 +433,7 @@ const StudentManagement = () => {
                       </strong>
                     </td>
                     <td style={{ minWidth: '120px' }}>{student.roll_number}</td>
-                    <td>{student.branch}</td>
+                    <td>{formatBranch(student.branch)}</td>
                     <td>{student.cgpa || '-'}</td>
                     <td style={{ minWidth: '110px' }}>
                       <span className={'badge ' + getStatusBadge(student.placement_status)}>

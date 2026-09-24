@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaDownload, FaSyncAlt, FaEye, FaSchool } from 'react-icons/fa';
 import toast from 'react-hot-toast';
@@ -77,7 +77,7 @@ const Header = () => {
         ['CSE', '450', '414', '92%', '10.2 LPA'],
         ['ECE', '300', '234', '78%', '7.8 LPA'],
         ['EEE', '200', '130', '65%', '6.5 LPA'],
-        ['Mechanical', '180', '104', '58%', '5.8 LPA'],
+        ['MECH', '180', '104', '58%', '5.8 LPA'],
         ['Civil', '120', '62', '52%', '5.2 LPA'],
         [''],
         ['=== Career Path Distribution ==='],
