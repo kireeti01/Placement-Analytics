@@ -3,14 +3,22 @@ import toast from 'react-hot-toast';
 
 // API Base URL
 const getBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
+  let envUrl = import.meta.env.VITE_API_URL;
+
+  // If on Render and VITE_API_URL is missing or localhost, automatically route to Render backend
+  if ((!envUrl || envUrl.includes('localhost')) && typeof window !== 'undefined') {
+    if (window.location.hostname.includes('onrender.com')) {
+      return 'https://campusplacement-backend.onrender.com/api';
+    }
+  }
+
   if (!envUrl) return 'http://localhost:5000/api';
   if (envUrl.endsWith('/api')) return envUrl;
   return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
 };
 
 const API_URL = getBaseUrl();
-
+console.log('🔗 API Base URL configured:', API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
@@ -34,17 +42,18 @@ api.interceptors.request.use(
 // Handle responses
 api.interceptors.response.use(
   (response) => {
-    // Return response for all 2xx status codes
     return response;
   },
   (error) => {
-    // Only handle errors (4xx, 5xx)
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('collegeId');
-      localStorage.removeItem('collegeName');
-      window.location.href = '/';
+      const isAuthPage = window.location.pathname === '/' || window.location.pathname === '/login';
+      if (!isAuthPage) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('collegeId');
+        localStorage.removeItem('collegeName');
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

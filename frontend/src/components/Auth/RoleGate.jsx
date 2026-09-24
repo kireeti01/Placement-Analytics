@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaGraduationCap, FaUserShield, FaEye, FaServer, FaArrowLeft, FaSchool } from 'react-icons/fa';
 import { authAPI } from '../../services/api';
@@ -34,12 +34,17 @@ const RoleGate = () => {
       const response = await authAPI.login(username, password);
       console.log('✅ Login response:', response.data);
       
-      const { token, user, college, role } = response.data;
+      const data = response?.data;
+      if (!data || typeof data === 'string' || !data.token || !data.user) {
+        throw new Error(data?.error || 'Invalid response from server. Check backend API URL configuration.');
+      }
+      
+      const { token, user, college, role } = data;
       
       // Store everything
       localStorage.setItem('token', token);
-      localStorage.setItem('role', role);
-      localStorage.setItem('username', user.username);
+      localStorage.setItem('role', role || user.role || 'guest');
+      localStorage.setItem('username', user.username || username);
       
       if (college) {
         localStorage.setItem('collegeId', college.id);
@@ -51,14 +56,15 @@ const RoleGate = () => {
 
       window.dispatchEvent(new Event('app:token-changed'));
       
-      toast.success('Welcome ' + user.username + '!');
+      toast.success('Welcome ' + (user.username || username) + '!');
       
       // Navigate based on role
-      if (role === 'super_admin') {
+      const userRole = role || user.role;
+      if (userRole === 'super_admin') {
         navigate('/super-admin/colleges');
-      } else if (role === 'admin') {
+      } else if (userRole === 'admin') {
         navigate('/app/dashboard');
-      } else if (role === 'parent' && !college) {
+      } else if (userRole === 'parent' && !college) {
         navigate('/select-college');
       } else {
         // For other roles like parent/student
@@ -66,8 +72,9 @@ const RoleGate = () => {
       }
     } catch (error) {
       console.error('❌ Login error:', error);
-      setLoginError(error.response?.data?.error || 'Invalid username or password');
-      toast.error('Login failed');
+      const errorMsg = error.response?.data?.error || error.message || 'Invalid username or password';
+      setLoginError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
