@@ -51,12 +51,16 @@ services:
         value: 587
       - key: EMAIL_USER
         value: accsupportive@gmail.com
-      - key: EMAIL_PASS
-        value: kpig ywkf lgjq viix
       - key: EMAIL_FROM
         value: accsupportive@gmail.com
       - key: EMAIL_REPLY_TO
         value: accsupportive@gmail.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        value: CampusPlacement <onboarding@resend.dev>
+
+
 
 
   # 3. React Frontend (Static Site)
