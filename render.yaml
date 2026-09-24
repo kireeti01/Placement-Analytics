@@ -68,4 +68,5 @@ databases:
   - name: campusplacement-db
     plan: free
     databaseName: campusplacement
-    user: postgres
+    user: campusadmin
+
