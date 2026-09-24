@@ -198,4 +198,51 @@ const sendSupportRequestEmail = async ({ recipient, name, email, collegeName, us
   }
 };
 
-module.exports = { sendCredentialsEmail, sendSupportRequestEmail };
+const testSMTP = async (to = 'kireeti213@gmail.com') => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  
+  if (!user || !pass) {
+    return {
+      success: false,
+      configured: false,
+      error: 'EMAIL_USER or EMAIL_PASS environment variables are not set in the hosting environment',
+      env_user: user ? user : 'missing',
+      env_pass_set: !!pass
+    };
+  }
+
+  const transporter = getTransporter();
+  
+  try {
+    await transporter.verify();
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || user,
+      to: to,
+      subject: 'CampusPlacement AI - SMTP Test Email',
+      text: 'If you receive this email, your SMTP configuration on Render is working perfectly!'
+    });
+
+    return {
+      success: true,
+      configured: true,
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      user: user
+    };
+  } catch (error) {
+    return {
+      success: false,
+      configured: true,
+      error: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode
+    };
+  }
+};
+
+module.exports = { sendCredentialsEmail, sendSupportRequestEmail, testSMTP };
+
