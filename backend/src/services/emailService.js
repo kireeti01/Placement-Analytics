@@ -45,11 +45,35 @@ const getTransporter = () => {
   });
 };
 
-// Unified email dispatcher (Resend API -> Brevo API -> Nodemailer SMTP)
+// Unified email dispatcher (Brevo API -> Resend API -> Nodemailer SMTP with auto-fallback)
 const dispatchEmail = async ({ to, subject, html, text }) => {
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'onboarding@resend.dev';
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'accsupportive@gmail.com';
 
-  // 1. Resend HTTP REST API (Port 443 - 100% reliable on Cloud/Render)
+  // 1. Try Brevo HTTP API first (Can send to ANY email address worldwide)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      console.log('📤 Sending email via Brevo HTTP API to:', to);
+      const res = await axios.post('https://api.brevo.com/v3/smtp/email', {
+        sender: { name: 'CampusPlacement AI', email: from },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: html,
+        textContent: text
+      }, {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY.trim(),
+          'Content-Type': 'application/json'
+        },
+        timeout: 8000
+      });
+      console.log('✅ Brevo email sent successfully:', res.data);
+      return { success: true, provider: 'brevo', id: res.data?.messageId };
+    } catch (err) {
+      console.error('❌ Brevo API error:', err.response?.data || err.message);
+    }
+  }
+
+  // 2. Try Resend HTTP REST API
   if (process.env.RESEND_API_KEY) {
     try {
       console.log('📤 Sending email via Resend HTTP API to:', to);
@@ -70,57 +94,30 @@ const dispatchEmail = async ({ to, subject, html, text }) => {
       return { success: true, provider: 'resend', id: res.data?.id };
     } catch (err) {
       console.error('❌ Resend API error:', err.response?.data || err.message);
-      return { success: false, provider: 'resend', error: err.response?.data?.message || err.message };
-    }
-  }
-
-  // 2. Brevo HTTP REST API (Port 443)
-  if (process.env.BREVO_API_KEY) {
-    try {
-      console.log('📤 Sending email via Brevo HTTP API to:', to);
-      const res = await axios.post('https://api.brevo.com/v3/smtp/email', {
-        sender: { name: 'CampusPlacement AI', email: process.env.EMAIL_FROM || 'accsupportive@gmail.com' },
-        to: [{ email: to }],
-        subject: subject,
-        htmlContent: html,
-        textContent: text
-      }, {
-        headers: {
-          'api-key': process.env.BREVO_API_KEY.trim(),
-          'Content-Type': 'application/json'
-        },
-        timeout: 8000
-      });
-      console.log('✅ Brevo email sent successfully:', res.data);
-      return { success: true, provider: 'brevo', id: res.data?.messageId };
-    } catch (err) {
-      console.error('❌ Brevo API error:', err.response?.data || err.message);
-      return { success: false, provider: 'brevo', error: err.response?.data?.message || err.message };
     }
   }
 
   // 3. Fallback to Nodemailer SMTP
   const transporter = getTransporter();
-  if (!transporter) {
-    console.log('⚠️ No email provider configured.');
-    return { success: false, message: 'SMTP not configured in environment variables.' };
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: from,
+        to,
+        subject,
+        html,
+        text
+      });
+      console.log('✅ SMTP email accepted:', info.messageId);
+      return { success: true, provider: 'smtp', messageId: info.messageId };
+    } catch (smtpErr) {
+      console.error('❌ SMTP Error:', smtpErr.message);
+    }
   }
 
-  try {
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'CampusPlacement <support@campusplacement.ai>',
-      to,
-      subject,
-      html,
-      text
-    });
-    console.log('✅ SMTP email accepted:', info.messageId);
-    return { success: true, provider: 'smtp', messageId: info.messageId };
-  } catch (smtpErr) {
-    console.error('❌ SMTP Error:', smtpErr.message);
-    return { success: false, provider: 'smtp', error: smtpErr.message };
-  }
+  return { success: false, message: 'All configured email dispatchers failed.' };
 };
+
 
 const sendCredentialsEmail = async (to, username, password, collegeName) => {
   const subject = 'CampusPlacement - Login Credentials for ' + collegeName;
