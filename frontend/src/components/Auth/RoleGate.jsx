@@ -159,7 +159,6 @@ const RoleGate = () => {
                 type="text" 
                 id="loginUser"
                 placeholder="Enter username"
-                defaultValue="superadmin"
                 style={{ width: '100%', padding: '12px 16px', border: '1px solid #dee2e6', borderRadius: '10px', fontSize: '14px' }} 
                 disabled={loading}
               />
@@ -170,7 +169,6 @@ const RoleGate = () => {
                 type="password" 
                 id="loginPass"
                 placeholder="Enter password"
-                defaultValue="super123"
                 style={{ width: '100%', padding: '12px 16px', border: '1px solid #dee2e6', borderRadius: '10px', fontSize: '14px' }} 
                 disabled={loading}
               />
@@ -179,9 +177,6 @@ const RoleGate = () => {
               {loading ? 'Logging in...' : <><FaServer /> Login as Super Admin</>}
             </button>
           </form>
-          <p style={{ fontSize: '11px', color: '#adb5bd', marginTop: '18px' }}>
-            Default: superadmin / super123
-          </p>
         </div>
       </div>
     );
