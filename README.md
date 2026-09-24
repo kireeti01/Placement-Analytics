@@ -2,26 +2,40 @@
 
 The Placement Analytics and Career Outcome Intelligence Platform is a college placement-management, analytics, reporting, and AI-assistance platform. It allows a super administrator to manage colleges and college administrators, allows a college administrator/TPO to manage student and placement data, and provides a read-only parent/student view for a selected college.
 
+---
+
+## 🌐 Live Deployment Links
+
+| Service | Live URL | Description |
+| :--- | :--- | :--- |
+| **🚀 Web Application (Frontend)** | [https://campusplacement-frontend.onrender.com](https://campusplacement-frontend.onrender.com) | React 18 / Vite Client |
+| **⚙️ Backend API** | [https://campusplacement-backend.onrender.com/api](https://campusplacement-backend.onrender.com/api) | Node.js Express REST API |
+| **🤖 AI / ML Microservice** | [https://campusplacement-ai.onrender.com](https://campusplacement-ai.onrender.com) | Python 3.12 ML Prediction Engine |
+| **📦 GitHub Repository** | [https://github.com/kireeti01/Placement-Analytics](https://github.com/kireeti01/Placement-Analytics) | Source Code |
+
+---
+
 ## Contents
 
-1. [System Overview](#system-overview)
-2. [Technology Stack](#technology-stack)
-3. [Repository Structure](#repository-structure)
-4. [Roles And Access](#roles-and-access)
-5. [Application Sections](#application-sections)
-6. [Data Flow](#data-flow)
-7. [Prerequisites](#prerequisites)
-8. [Installation](#installation)
-9. [Environment Configuration](#environment-configuration)
-10. [Running The Services](#running-the-services)
-11. [Database](#database)
-12. [Backend API](#backend-api)
-13. [AI Service API](#ai-service-api)
-14. [Student Data Fields](#student-data-fields)
-15. [Reports And Imports](#reports-and-imports)
-16. [Security And Access Rules](#security-and-access-rules)
-17. [Validation And Troubleshooting](#validation-and-troubleshooting)
-18. [Known Limitations](#known-limitations)
+1. [Live Deployment Links](#-live-deployment-links)
+2. [System Overview](#system-overview)
+3. [Technology Stack](#technology-stack)
+4. [Repository Structure](#repository-structure)
+5. [Roles And Access](#roles-and-access)
+6. [Application Sections](#application-sections)
+7. [Data Flow](#data-flow)
+8. [Prerequisites](#prerequisites)
+9. [Installation](#installation)
+10. [Environment Configuration](#environment-configuration)
+11. [Running The Services](#running-the-services)
+12. [Database](#database)
+13. [Backend API](#backend-api)
+14. [AI Service API](#ai-service-api)
+15. [Student Data Fields](#student-data-fields)
+16. [Reports And Imports](#reports-and-imports)
+17. [Security And Access Rules](#security-and-access-rules)
+18. [Validation And Troubleshooting](#validation-and-troubleshooting)
+19. [Known Limitations](#known-limitations)
 
 ## System Overview
 
