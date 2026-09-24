@@ -45,11 +45,9 @@ services:
         value: super123
 
   # 3. React Frontend (Static Site)
-  - type: web
+  - type: static
     name: campusplacement-frontend
-    env: static
     rootDir: frontend
-    plan: free
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     routes:
