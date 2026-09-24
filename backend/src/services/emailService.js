@@ -4,20 +4,48 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const getTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s/g, '') : '';
+
+  if (!user || !pass) {
     console.warn('⚠️ SMTP Warning: EMAIL_USER or EMAIL_PASS environment variables are not set.');
     return null;
   }
+
+  // Use 'gmail' built-in service profile for reliable Gmail delivery
+  if (user.includes('@gmail.com') || (process.env.EMAIL_HOST && process.env.EMAIL_HOST.includes('gmail'))) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: user,
+        pass: pass
+      },
+      connectionTimeout: 7000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000,
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+  }
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.EMAIL_PORT) || 587,
     secure: parseInt(process.env.EMAIL_PORT) === 465,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS.replace(/\s/g, '')
+      user: user,
+      pass: pass
+    },
+    connectionTimeout: 7000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000,
+    tls: {
+      rejectUnauthorized: false
     }
   });
 };
+
 
 const sendCredentialsEmail = async (to, username, password, collegeName) => {
   const transporter = getTransporter();

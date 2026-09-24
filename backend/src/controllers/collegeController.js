@@ -375,11 +375,10 @@ exports.createAdminAccount = async (req, res) => {
       is_active: true
     });
 
-    try {
-      await sendCredentialsEmail(email, finalUsername, password, college_name);
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError.message);
-    }
+    sendCredentialsEmail(email, finalUsername, password, college_name)
+      .then(emailRes => console.log('Credentials email dispatched to:', email, emailRes))
+      .catch(emailError => console.error('Email sending failed in background:', emailError.message));
+
 
     res.status(201).json({
       message: 'Admin account created',
@@ -426,19 +425,19 @@ exports.resetAdminPassword = async (req, res) => {
     console.log('Password reset successfully for:', admin.username);
     console.log('New password:', trimmedPassword);
     
-    try {
-      await sendCredentialsEmail(
-        admin.email,
-        admin.username,
-        trimmedPassword,
-        admin.college_name
-      );
-      console.log('Email sent to:', admin.email);
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError.message);
-    }
+    // Send email asynchronously in background
+    sendCredentialsEmail(
+      admin.email,
+      admin.username,
+      trimmedPassword,
+      admin.college_name
+    ).then(emailRes => {
+      console.log('Credentials email dispatched to:', admin.email, emailRes);
+    }).catch(emailError => {
+      console.error('Email sending failed in background:', emailError.message);
+    });
 
-    res.status(200).json({ 
+    return res.status(200).json({ 
       message: 'Password reset successfully',
       username: admin.username,
       newPassword: trimmedPassword,
