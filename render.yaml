@@ -62,7 +62,7 @@ services:
           type: web
           name: campusplacement-backend
           property: host
-          value: /api
+
 
 databases:
   - name: campusplacement-db
