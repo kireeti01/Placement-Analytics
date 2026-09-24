@@ -58,6 +58,8 @@ const RoleGate = () => {
         navigate('/super-admin/colleges');
       } else if (role === 'admin') {
         navigate('/app/dashboard');
+      } else if (role === 'parent' && !college) {
+        navigate('/select-college');
       } else {
         // For other roles like parent/student
         navigate('/app/dashboard');

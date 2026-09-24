@@ -49,6 +49,7 @@ const CollegeGate = () => {
   const selectCollege = (collegeId, collegeName) => {
     localStorage.setItem('collegeId', collegeId);
     localStorage.setItem('collegeName', collegeName);
+    window.dispatchEvent(new Event('app:token-changed'));
     navigate('/app/dashboard');
   };
 
