@@ -1,35 +1,35 @@
-﻿const nodemailer = require('nodemailer');
+const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
-let transporter = null;
-const supportSender = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SUPER_ADMIN_EMAIL || 'accsupportive@gmail.com';
-
-// Initialize transporter only if email config exists
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
+const getTransporter = () => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('⚠️ SMTP Warning: EMAIL_USER or EMAIL_PASS environment variables are not set.');
+    return null;
+  }
+  return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.EMAIL_PORT) || 587,
-    secure: false,
+    secure: parseInt(process.env.EMAIL_PORT) === 465,
     auth: {
       user: process.env.EMAIL_USER,
-      // Gmail displays app passwords with spaces; whitespace is not part of the credential.
       pass: process.env.EMAIL_PASS.replace(/\s/g, '')
     }
   });
-}
+};
 
 const sendCredentialsEmail = async (to, username, password, collegeName) => {
+  const transporter = getTransporter();
+  const supportSender = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SUPER_ADMIN_EMAIL || 'support@campusplacement.ai';
+
   // If no transporter configured, log and return
   if (!transporter) {
-    console.log('Email not sent (no transporter configured)');
-    console.log('From:', supportSender);
-    console.log('To:', to);
-    console.log('Username:', username);
-    console.log('Password:', password);
-    return { success: false, message: 'Credentials generated, but email was not sent because SMTP is not configured' };
+    console.log('❌ Email not sent: SMTP transporter not configured.');
+    console.log('To:', to, '| Username:', username, '| Password:', password);
+    return { success: false, message: 'Credentials generated, but email was not sent because SMTP is not configured in environment variables.' };
   }
+
 
   try {
     const subject = 'CampusPlacement - Login Credentials for ' + collegeName;
@@ -122,14 +122,15 @@ const sendCredentialsEmail = async (to, username, password, collegeName) => {
 };
 
 const sendSupportRequestEmail = async ({ recipient, name, email, collegeName, username, message }) => {
+  const transporter = getTransporter();
+  const supportSender = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SUPER_ADMIN_EMAIL || 'support@campusplacement.ai';
   const to = recipient || (process.env.SUPER_ADMIN_EMAIL && process.env.SUPER_ADMIN_EMAIL !== 'superadmin@campusplacement.ai'
     ? process.env.SUPER_ADMIN_EMAIL
     : (process.env.EMAIL_USER || 'accsupportive@gmail.com'));
 
   if (!transporter) {
     console.log('Support request email not sent (no transporter configured)');
-    console.log('To:', to);
-    console.log('From:', supportSender);
+    console.log('To:', to, '| From:', supportSender);
     return { success: false, message: 'Support request received, but email was not sent because SMTP is not configured' };
   }
 

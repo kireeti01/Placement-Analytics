@@ -43,6 +43,21 @@ services:
         value: superadmin@campusplacement.ai
       - key: SUPER_ADMIN_PASSWORD
         value: super123
+      - key: FRONTEND_URL
+        value: https://campusplacement-frontend.onrender.com
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USER
+        value: accsupportive@gmail.com
+      - key: EMAIL_PASS
+        value: kpig ywkf lgjq viix
+      - key: EMAIL_FROM
+        value: accsupportive@gmail.com
+      - key: EMAIL_REPLY_TO
+        value: accsupportive@gmail.com
+
 
   # 3. React Frontend (Static Site)
   - type: web
