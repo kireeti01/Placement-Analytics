@@ -1,3 +1,4 @@
+const axios = require('axios');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 
@@ -8,11 +9,9 @@ const getTransporter = () => {
   const pass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s/g, '') : '';
 
   if (!user || !pass) {
-    console.warn('⚠️ SMTP Warning: EMAIL_USER or EMAIL_PASS environment variables are not set.');
     return null;
   }
 
-  // Use 'gmail' built-in service profile for reliable Gmail delivery
   if (user.includes('@gmail.com') || (process.env.EMAIL_HOST && process.env.EMAIL_HOST.includes('gmail'))) {
     return nodemailer.createTransport({
       service: 'gmail',
@@ -20,9 +19,9 @@ const getTransporter = () => {
         user: user,
         pass: pass
       },
-      connectionTimeout: 7000,
-      greetingTimeout: 5000,
-      socketTimeout: 10000,
+      connectionTimeout: 5000,
+      greetingTimeout: 4000,
+      socketTimeout: 6000,
       tls: {
         rejectUnauthorized: false
       }
@@ -37,166 +36,167 @@ const getTransporter = () => {
       user: user,
       pass: pass
     },
-    connectionTimeout: 7000,
-    greetingTimeout: 5000,
-    socketTimeout: 10000,
+    connectionTimeout: 5000,
+    greetingTimeout: 4000,
+    socketTimeout: 6000,
     tls: {
       rejectUnauthorized: false
     }
   });
 };
 
+// Unified email dispatcher (Resend API -> Brevo API -> Nodemailer SMTP)
+const dispatchEmail = async ({ to, subject, html, text }) => {
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'onboarding@resend.dev';
 
-const sendCredentialsEmail = async (to, username, password, collegeName) => {
-  const transporter = getTransporter();
-  const supportSender = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SUPER_ADMIN_EMAIL || 'support@campusplacement.ai';
-
-  // If no transporter configured, log and return
-  if (!transporter) {
-    console.log('❌ Email not sent: SMTP transporter not configured.');
-    console.log('To:', to, '| Username:', username, '| Password:', password);
-    return { success: false, message: 'Credentials generated, but email was not sent because SMTP is not configured in environment variables.' };
+  // 1. Resend HTTP REST API (Port 443 - 100% reliable on Cloud/Render)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      console.log('📤 Sending email via Resend HTTP API to:', to);
+      const res = await axios.post('https://api.resend.com/emails', {
+        from: process.env.RESEND_FROM || 'CampusPlacement <onboarding@resend.dev>',
+        to: Array.isArray(to) ? to : [to],
+        subject: subject,
+        html: html,
+        text: text
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 8000
+      });
+      console.log('✅ Resend email sent successfully:', res.data);
+      return { success: true, provider: 'resend', id: res.data?.id };
+    } catch (err) {
+      console.error('❌ Resend API error:', err.response?.data || err.message);
+      return { success: false, provider: 'resend', error: err.response?.data?.message || err.message };
+    }
   }
 
+  // 2. Brevo HTTP REST API (Port 443)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      console.log('📤 Sending email via Brevo HTTP API to:', to);
+      const res = await axios.post('https://api.brevo.com/v3/smtp/email', {
+        sender: { name: 'CampusPlacement AI', email: process.env.EMAIL_FROM || 'accsupportive@gmail.com' },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: html,
+        textContent: text
+      }, {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY.trim(),
+          'Content-Type': 'application/json'
+        },
+        timeout: 8000
+      });
+      console.log('✅ Brevo email sent successfully:', res.data);
+      return { success: true, provider: 'brevo', id: res.data?.messageId };
+    } catch (err) {
+      console.error('❌ Brevo API error:', err.response?.data || err.message);
+      return { success: false, provider: 'brevo', error: err.response?.data?.message || err.message };
+    }
+  }
+
+  // 3. Fallback to Nodemailer SMTP
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log('⚠️ No email provider configured.');
+    return { success: false, message: 'SMTP not configured in environment variables.' };
+  }
 
   try {
-    const subject = 'CampusPlacement - Login Credentials for ' + collegeName;
-    const html = 
-      '<!DOCTYPE html>' +
-      '<html>' +
-      '<head>' +
-      '<style>' +
-      'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +
-      '.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +
-      '.header { background: #1e3a5f; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }' +
-      '.content { padding: 20px; background: #f8f9fa; border-radius: 0 0 8px 8px; }' +
-      '.credentials { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #dee2e6; }' +
-      '.credential-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }' +
-      '.credential-item:last-child { border-bottom: none; }' +
-      '.label { font-weight: bold; color: #1e3a5f; }' +
-      '.value { font-family: monospace; background: #f1f3f5; padding: 2px 8px; border-radius: 4px; }' +
-      '.footer { text-align: center; padding: 20px; color: #6c757d; font-size: 12px; }' +
-      '.button { display: inline-block; background: #1e3a5f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }' +
-      '.warning { color: #dc3545; font-size: 13px; }' +
-      '</style>' +
-      '</head>' +
-      '<body>' +
-      '<div class="container">' +
-      '<div class="header">' +
-      '<h1>CampusPlacement</h1>' +
-      '<p>Your college has been approved!</p>' +
-      '</div>' +
-      '<div class="content">' +
-      '<h2>Welcome to CampusPlacement!</h2>' +
-      '<p>Your college <strong>' + collegeName + '</strong> has been successfully approved and onboarded to the CampusPlacement platform.</p>' +
-      '<p>Here are your login credentials:</p>' +
-      '<div class="credentials">' +
-      '<div class="credential-item">' +
-      '<span class="label">Username:</span>' +
-      '<span class="value">' + username + '</span>' +
-      '</div>' +
-      '<div class="credential-item">' +
-      '<span class="label">Password:</span>' +
-      '<span class="value">' + password + '</span>' +
-      '</div>' +
-      '</div>' +
-      '<p style="margin-top: 20px;">' +
-      '<a href="' + (process.env.FRONTEND_URL || 'http://localhost:3000') + '" class="button">Login Now</a>' +
-      '</p>' +
-      '<p class="warning">Please change your password after first login.</p>' +
-      '<p>If you have any questions, contact support at <a href="mailto:support@campusplacement.ai">support@campusplacement.ai</a></p>' +
-      '</div>' +
-      '<div class="footer">' +
-      '<p>' + new Date().getFullYear() + ' CampusPlacement. All rights reserved.</p>' +
-      '</div>' +
-      '</div>' +
-      '</body>' +
-      '</html>';
-
-    const mailOptions = {
-      from: supportSender,
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'CampusPlacement <support@campusplacement.ai>',
       to,
-      replyTo: process.env.EMAIL_REPLY_TO || supportSender,
       subject,
-      html
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    const accepted = info.accepted || [];
-    const rejected = info.rejected || [];
-
-    if (!accepted.includes(to) || rejected.includes(to)) {
-      console.error('Email recipient rejected:', { to, accepted, rejected });
-      return {
-        success: false,
-        message: 'SMTP rejected the recipient address',
-        accepted,
-        rejected
-      };
-    }
-
-    console.log('Email accepted by SMTP:', { to, messageId: info.messageId });
-    return {
-      success: true,
-      message: 'Email accepted by SMTP; check the recipient inbox or spam folder',
-      messageId: info.messageId,
-      accepted,
-      rejected
-    };
-  } catch (error) {
-    console.error('Email error:', error);
-    return { success: false, error: error.message };
+      html,
+      text
+    });
+    console.log('✅ SMTP email accepted:', info.messageId);
+    return { success: true, provider: 'smtp', messageId: info.messageId };
+  } catch (smtpErr) {
+    console.error('❌ SMTP Error:', smtpErr.message);
+    return { success: false, provider: 'smtp', error: smtpErr.message };
   }
 };
 
+const sendCredentialsEmail = async (to, username, password, collegeName) => {
+  const subject = 'CampusPlacement - Login Credentials for ' + collegeName;
+  const html = 
+    '<!DOCTYPE html>' +
+    '<html>' +
+    '<head>' +
+    '<style>' +
+    'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +
+    '.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +
+    '.header { background: #1e3a5f; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }' +
+    '.content { padding: 20px; background: #f8f9fa; border-radius: 0 0 8px 8px; }' +
+    '.credentials { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #dee2e6; }' +
+    '.credential-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }' +
+    '.credential-item:last-child { border-bottom: none; }' +
+    '.label { font-weight: bold; color: #1e3a5f; }' +
+    '.value { font-family: monospace; background: #f1f3f5; padding: 2px 8px; border-radius: 4px; font-weight: bold; }' +
+    '.footer { text-align: center; padding: 20px; color: #6c757d; font-size: 12px; }' +
+    '.button { display: inline-block; background: #1e3a5f; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }' +
+    '.warning { color: #dc3545; font-size: 13px; }' +
+    '</style>' +
+    '</head>' +
+    '<body>' +
+    '<div class="container">' +
+    '<div class="header">' +
+    '<h1>CampusPlacement</h1>' +
+    '<p>Your college has been approved!</p>' +
+    '</div>' +
+    '<div class="content">' +
+    '<h2>Welcome to CampusPlacement!</h2>' +
+    '<p>Your college <strong>' + collegeName + '</strong> has been successfully approved and onboarded to the CampusPlacement platform.</p>' +
+    '<p>Here are your login credentials:</p>' +
+    '<div class="credentials">' +
+    '<div class="credential-item">' +
+    '<span class="label">Username:</span>' +
+    '<span class="value">' + username + '</span>' +
+    '</div>' +
+    '<div class="credential-item">' +
+    '<span class="label">Password:</span>' +
+    '<span class="value">' + password + '</span>' +
+    '</div>' +
+    '</div>' +
+    '<p style="margin-top: 20px;">' +
+    '<a href="' + (process.env.FRONTEND_URL || 'https://campusplacement-frontend.onrender.com') + '" class="button">Login Now</a>' +
+    '</p>' +
+    '<p class="warning">Please change your password after first login.</p>' +
+    '</div>' +
+    '<div class="footer">' +
+    '<p>' + new Date().getFullYear() + ' CampusPlacement AI. All rights reserved.</p>' +
+    '</div>' +
+    '</div>' +
+    '</body>' +
+    '</html>';
+
+  const text = `Welcome to CampusPlacement!\nCollege: ${collegeName}\nUsername: ${username}\nPassword: ${password}\nLogin at: ${process.env.FRONTEND_URL || 'https://campusplacement-frontend.onrender.com'}`;
+
+  return await dispatchEmail({ to, subject, html, text });
+};
+
 const sendSupportRequestEmail = async ({ recipient, name, email, collegeName, username, message }) => {
-  const transporter = getTransporter();
-  const supportSender = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SUPER_ADMIN_EMAIL || 'support@campusplacement.ai';
   const to = recipient || (process.env.SUPER_ADMIN_EMAIL && process.env.SUPER_ADMIN_EMAIL !== 'superadmin@campusplacement.ai'
     ? process.env.SUPER_ADMIN_EMAIL
     : (process.env.EMAIL_USER || 'accsupportive@gmail.com'));
 
-  if (!transporter) {
-    console.log('Support request email not sent (no transporter configured)');
-    console.log('To:', to, '| From:', supportSender);
-    return { success: false, message: 'Support request received, but email was not sent because SMTP is not configured' };
-  }
+  const subject = 'CampusPlacement - Admin Credentials Help Request';
+  const html =
+    '<!DOCTYPE html>' +
+    '<html>' +
+    '<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;} .container{max-width:600px;margin:0 auto;padding:20px;} .card{background:#f8f9fa;padding:20px;border-radius:10px;border:1px solid #dee2e6;} .label{font-weight:bold;color:#1e3a5f;} .value{margin-left:6px;}</style></head>' +
+    '<body><div class="container"><div class="card"><h2>Admin Credentials Help Request</h2><p>An admin has requested help with their CampusPlacement credentials.</p><p><span class="label">Name:</span><span class="value">' + (name || 'N/A') + '</span></p><p><span class="label">Email:</span><span class="value">' + (email || 'N/A') + '</span></p><p><span class="label">College:</span><span class="value">' + (collegeName || 'N/A') + '</span></p><p><span class="label">Username:</span><span class="value">' + (username || 'N/A') + '</span></p><p><span class="label">Request Time:</span><span class="value">' + new Date().toLocaleString() + '</span></p><p><span class="label">Issue:</span><span class="value">' + (message || 'N/A') + '</span></p><p style="margin-top:16px;">Please review this request and help recover or reset the account access.</p></div></div></body></html>';
+  
+  const text = `Admin Help Request\nName: ${name}\nEmail: ${email}\nCollege: ${collegeName}\nUsername: ${username}\nIssue: ${message}`;
 
-  try {
-    const subject = 'CampusPlacement - Admin Credentials Help Request';
-    const html =
-      '<!DOCTYPE html>' +
-      '<html>' +
-      '<head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;} .container{max-width:600px;margin:0 auto;padding:20px;} .card{background:#f8f9fa;padding:20px;border-radius:10px;border:1px solid #dee2e6;} .label{font-weight:bold;color:#1e3a5f;} .value{margin-left:6px;}</style></head>' +
-      '<body><div class="container"><div class="card"><h2>Admin Credentials Help Request</h2><p>An admin has requested help with their CampusPlacement credentials.</p><p><span class="label">Name:</span><span class="value">' + (name || 'N/A') + '</span></p><p><span class="label">Email:</span><span class="value">' + (email || 'N/A') + '</span></p><p><span class="label">College:</span><span class="value">' + (collegeName || 'N/A') + '</span></p><p><span class="label">Username:</span><span class="value">' + (username || 'N/A') + '</span></p><p><span class="label">Request Time:</span><span class="value">' + new Date().toLocaleString() + '</span></p><p><span class="label">Issue:</span><span class="value">' + (message || 'N/A') + '</span></p><p style="margin-top:16px;">Please review this request and help recover or reset the account access.</p></div></div></body></html>';
-
-    const info = await transporter.sendMail({
-      from: supportSender,
-      to,
-      replyTo: email || supportSender,
-      subject,
-      html
-    });
-
-    const accepted = info.accepted || [];
-    const rejected = info.rejected || [];
-    if (!accepted.includes(to) || rejected.includes(to)) {
-      console.error('Support email recipient rejected:', { to, accepted, rejected });
-      return { success: false, message: 'SMTP rejected the recipient address', accepted, rejected };
-    }
-
-    return {
-      success: true,
-      message: 'Support request accepted by SMTP',
-      messageId: info.messageId,
-      accepted,
-      rejected
-    };
-  } catch (error) {
-    console.error('Support email error:', error);
-    return { success: false, error: error.message };
-  }
+  return await dispatchEmail({ to, subject, html, text });
 };
+
 
 const testSMTP = async (to = 'kireeti213@gmail.com') => {
   const user = process.env.EMAIL_USER;
